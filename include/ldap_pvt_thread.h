@@ -57,13 +57,7 @@ ldap_pvt_thread_set_concurrency LDAP_P(( int ));
 
 #ifndef LDAP_PVT_THREAD_H_DONE
 #define	LDAP_PVT_THREAD_SET_STACK_SIZE
-#ifndef LDAP_PVT_THREAD_STACK_SIZE
-	/* LARGE stack. Will be twice as large on 64 bit machine. */
-#define LDAP_PVT_THREAD_STACK_SIZE	( 1 * 1024 * 1024 * sizeof(void *) )
-/* May be explicitly defined to zero to disable it */
-#elif LDAP_PVT_THREAD_STACK_SIZE == 0
 #undef LDAP_PVT_THREAD_SET_STACK_SIZE
-#endif
 #endif /* !LDAP_PVT_THREAD_H_DONE */
 
 LDAP_F( int )
