@@ -1,7 +1,7 @@
-/* $OpenLDAP: pkg/ldap/libraries/libldap/schema.c,v 1.53.2.8 2004/04/09 12:56:03 hyc Exp $ */
+/* $OpenLDAP: pkg/ldap/libraries/libldap/schema.c,v 1.61.2.5 2005/01/20 17:01:02 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2004 The OpenLDAP Foundation.
+ * Copyright 1998-2005 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -12,6 +12,7 @@
  * top-level directory of the distribution or, alternatively, at
  * <http://www.OpenLDAP.org/license.html>.
  */
+
 /*
  * schema.c:  parsing routines used by servers and clients to process
  *	schema definitions
@@ -1494,7 +1495,7 @@ ldap_str2syntax( LDAP_CONST char * s,
 		case TK_RIGHTPAREN:
 			return syn;
 		case TK_BAREWORD:
-			if ( !strcmp(sval,"NAME") ) {
+			if ( !strcasecmp(sval,"NAME") ) {
 				LDAP_FREE(sval);
 				if ( seen_name ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -1511,7 +1512,7 @@ ldap_str2syntax( LDAP_CONST char * s,
 					ldap_syntax_free(syn);
 					return NULL;
 				}
-			} else if ( !strcmp(sval,"DESC") ) {
+			} else if ( !strcasecmp(sval,"DESC") ) {
 				LDAP_FREE(sval);
 				if ( seen_desc ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -1624,11 +1625,11 @@ ldap_str2matchingrule( LDAP_CONST char * s,
 			ss = savepos;
 			kind = get_token(&ss,&sval);
 			if ( kind == TK_BAREWORD ) {
-				if ( !strcmp(sval, "NAME") ||
-				     !strcmp(sval, "DESC") ||
-				     !strcmp(sval, "OBSOLETE") ||
-				     !strcmp(sval, "SYNTAX") ||
-				     !strncmp(sval, "X-", 2) ) {
+				if ( !strcasecmp(sval, "NAME") ||
+				     !strcasecmp(sval, "DESC") ||
+				     !strcasecmp(sval, "OBSOLETE") ||
+				     !strcasecmp(sval, "SYNTAX") ||
+				     !strncasecmp(sval, "X-", 2) ) {
 					/* Missing OID, backtrack */
 					ss = savepos;
 				} else {
@@ -1664,7 +1665,7 @@ ldap_str2matchingrule( LDAP_CONST char * s,
 			}
 			return mr;
 		case TK_BAREWORD:
-			if ( !strcmp(sval,"NAME") ) {
+			if ( !strcasecmp(sval,"NAME") ) {
 				LDAP_FREE(sval);
 				if ( seen_name ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -1681,7 +1682,7 @@ ldap_str2matchingrule( LDAP_CONST char * s,
 					ldap_matchingrule_free(mr);
 					return NULL;
 				}
-			} else if ( !strcmp(sval,"DESC") ) {
+			} else if ( !strcasecmp(sval,"DESC") ) {
 				LDAP_FREE(sval);
 				if ( seen_desc ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -1701,7 +1702,7 @@ ldap_str2matchingrule( LDAP_CONST char * s,
 				}
 				mr->mr_desc = sval;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"OBSOLETE") ) {
+			} else if ( !strcasecmp(sval,"OBSOLETE") ) {
 				LDAP_FREE(sval);
 				if ( seen_obsolete ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -1712,7 +1713,7 @@ ldap_str2matchingrule( LDAP_CONST char * s,
 				seen_obsolete = 1;
 				mr->mr_obsolete = LDAP_SCHEMA_YES;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"SYNTAX") ) {
+			} else if ( !strcasecmp(sval,"SYNTAX") ) {
 				LDAP_FREE(sval);
 				if ( seen_syntax ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -1823,11 +1824,11 @@ ldap_str2matchingruleuse( LDAP_CONST char * s,
 			ss = savepos;
 			kind = get_token(&ss,&sval);
 			if ( kind == TK_BAREWORD ) {
-				if ( !strcmp(sval, "NAME") ||
-				     !strcmp(sval, "DESC") ||
-				     !strcmp(sval, "OBSOLETE") ||
-				     !strcmp(sval, "APPLIES") ||
-				     !strncmp(sval, "X-", 2) ) {
+				if ( !strcasecmp(sval, "NAME") ||
+				     !strcasecmp(sval, "DESC") ||
+				     !strcasecmp(sval, "OBSOLETE") ||
+				     !strcasecmp(sval, "APPLIES") ||
+				     !strncasecmp(sval, "X-", 2) ) {
 					/* Missing OID, backtrack */
 					ss = savepos;
 				} else {
@@ -1863,7 +1864,7 @@ ldap_str2matchingruleuse( LDAP_CONST char * s,
 			}
 			return mru;
 		case TK_BAREWORD:
-			if ( !strcmp(sval,"NAME") ) {
+			if ( !strcasecmp(sval,"NAME") ) {
 				LDAP_FREE(sval);
 				if ( seen_name ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -1880,7 +1881,7 @@ ldap_str2matchingruleuse( LDAP_CONST char * s,
 					ldap_matchingruleuse_free(mru);
 					return NULL;
 				}
-			} else if ( !strcmp(sval,"DESC") ) {
+			} else if ( !strcasecmp(sval,"DESC") ) {
 				LDAP_FREE(sval);
 				if ( seen_desc ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -1900,7 +1901,7 @@ ldap_str2matchingruleuse( LDAP_CONST char * s,
 				}
 				mru->mru_desc = sval;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"OBSOLETE") ) {
+			} else if ( !strcasecmp(sval,"OBSOLETE") ) {
 				LDAP_FREE(sval);
 				if ( seen_obsolete ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -1911,7 +1912,7 @@ ldap_str2matchingruleuse( LDAP_CONST char * s,
 				seen_obsolete = 1;
 				mru->mru_obsolete = LDAP_SCHEMA_YES;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"APPLIES") ) {
+			} else if ( !strcasecmp(sval,"APPLIES") ) {
 				LDAP_FREE(sval);
 				if ( seen_applies ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2039,19 +2040,19 @@ ldap_str2attributetype( LDAP_CONST char * s,
 			ss = savepos;
 			kind = get_token(&ss,&sval);
 			if ( kind == TK_BAREWORD ) {
-				if ( !strcmp(sval, "NAME") ||
-				     !strcmp(sval, "DESC") ||
-				     !strcmp(sval, "OBSOLETE") ||
-				     !strcmp(sval, "SUP") ||
-				     !strcmp(sval, "EQUALITY") ||
-				     !strcmp(sval, "ORDERING") ||
-				     !strcmp(sval, "SUBSTR") ||
-				     !strcmp(sval, "SYNTAX") ||
-				     !strcmp(sval, "SINGLE-VALUE") ||
-				     !strcmp(sval, "COLLECTIVE") ||
-				     !strcmp(sval, "NO-USER-MODIFICATION") ||
-				     !strcmp(sval, "USAGE") ||
-				     !strncmp(sval, "X-", 2) ) {
+				if ( !strcasecmp(sval, "NAME") ||
+				     !strcasecmp(sval, "DESC") ||
+				     !strcasecmp(sval, "OBSOLETE") ||
+				     !strcasecmp(sval, "SUP") ||
+				     !strcasecmp(sval, "EQUALITY") ||
+				     !strcasecmp(sval, "ORDERING") ||
+				     !strcasecmp(sval, "SUBSTR") ||
+				     !strcasecmp(sval, "SYNTAX") ||
+				     !strcasecmp(sval, "SINGLE-VALUE") ||
+				     !strcasecmp(sval, "COLLECTIVE") ||
+				     !strcasecmp(sval, "NO-USER-MODIFICATION") ||
+				     !strcasecmp(sval, "USAGE") ||
+				     !strncasecmp(sval, "X-", 2) ) {
 					/* Missing OID, backtrack */
 					ss = savepos;
 				} else if ( flags
@@ -2087,7 +2088,7 @@ ldap_str2attributetype( LDAP_CONST char * s,
 		case TK_RIGHTPAREN:
 			return at;
 		case TK_BAREWORD:
-			if ( !strcmp(sval,"NAME") ) {
+			if ( !strcasecmp(sval,"NAME") ) {
 				LDAP_FREE(sval);
 				if ( seen_name ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2104,7 +2105,7 @@ ldap_str2attributetype( LDAP_CONST char * s,
 					ldap_attributetype_free(at);
 					return NULL;
 				}
-			} else if ( !strcmp(sval,"DESC") ) {
+			} else if ( !strcasecmp(sval,"DESC") ) {
 				LDAP_FREE(sval);
 				if ( seen_desc ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2124,7 +2125,7 @@ ldap_str2attributetype( LDAP_CONST char * s,
 				}
 				at->at_desc = sval;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"OBSOLETE") ) {
+			} else if ( !strcasecmp(sval,"OBSOLETE") ) {
 				LDAP_FREE(sval);
 				if ( seen_obsolete ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2135,7 +2136,7 @@ ldap_str2attributetype( LDAP_CONST char * s,
 				seen_obsolete = 1;
 				at->at_obsolete = LDAP_SCHEMA_YES;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"SUP") ) {
+			} else if ( !strcasecmp(sval,"SUP") ) {
 				LDAP_FREE(sval);
 				if ( seen_sup ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2150,7 +2151,7 @@ ldap_str2attributetype( LDAP_CONST char * s,
 					ldap_attributetype_free(at);
 					return NULL;
 				}
-			} else if ( !strcmp(sval,"EQUALITY") ) {
+			} else if ( !strcasecmp(sval,"EQUALITY") ) {
 				LDAP_FREE(sval);
 				if ( seen_equality ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2165,7 +2166,7 @@ ldap_str2attributetype( LDAP_CONST char * s,
 					ldap_attributetype_free(at);
 					return NULL;
 				}
-			} else if ( !strcmp(sval,"ORDERING") ) {
+			} else if ( !strcasecmp(sval,"ORDERING") ) {
 				LDAP_FREE(sval);
 				if ( seen_ordering ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2180,7 +2181,7 @@ ldap_str2attributetype( LDAP_CONST char * s,
 					ldap_attributetype_free(at);
 					return NULL;
 				}
-			} else if ( !strcmp(sval,"SUBSTR") ) {
+			} else if ( !strcasecmp(sval,"SUBSTR") ) {
 				LDAP_FREE(sval);
 				if ( seen_substr ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2195,7 +2196,7 @@ ldap_str2attributetype( LDAP_CONST char * s,
 					ldap_attributetype_free(at);
 					return NULL;
 				}
-			} else if ( !strcmp(sval,"SYNTAX") ) {
+			} else if ( !strcasecmp(sval,"SYNTAX") ) {
 				LDAP_FREE(sval);
 				if ( seen_syntax ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2239,7 +2240,7 @@ ldap_str2attributetype( LDAP_CONST char * s,
 				    }
 				}
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"SINGLE-VALUE") ) {
+			} else if ( !strcasecmp(sval,"SINGLE-VALUE") ) {
 				LDAP_FREE(sval);
 				if ( at->at_single_value ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2249,7 +2250,7 @@ ldap_str2attributetype( LDAP_CONST char * s,
 				}
 				at->at_single_value = LDAP_SCHEMA_YES;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"COLLECTIVE") ) {
+			} else if ( !strcasecmp(sval,"COLLECTIVE") ) {
 				LDAP_FREE(sval);
 				if ( at->at_collective ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2259,7 +2260,7 @@ ldap_str2attributetype( LDAP_CONST char * s,
 				}
 				at->at_collective = LDAP_SCHEMA_YES;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"NO-USER-MODIFICATION") ) {
+			} else if ( !strcasecmp(sval,"NO-USER-MODIFICATION") ) {
 				LDAP_FREE(sval);
 				if ( at->at_no_user_mod ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2269,7 +2270,7 @@ ldap_str2attributetype( LDAP_CONST char * s,
 				}
 				at->at_no_user_mod = LDAP_SCHEMA_YES;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"USAGE") ) {
+			} else if ( !strcasecmp(sval,"USAGE") ) {
 				LDAP_FREE(sval);
 				if ( seen_usage ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2414,16 +2415,16 @@ ldap_str2objectclass( LDAP_CONST char * s,
 			ss = savepos;
 			kind = get_token(&ss,&sval);
 			if ( kind == TK_BAREWORD ) {
-				if ( !strcmp(sval, "NAME") ||
-				     !strcmp(sval, "DESC") ||
-				     !strcmp(sval, "OBSOLETE") ||
-				     !strcmp(sval, "SUP") ||
-				     !strcmp(sval, "ABSTRACT") ||
-				     !strcmp(sval, "STRUCTURAL") ||
-				     !strcmp(sval, "AUXILIARY") ||
-				     !strcmp(sval, "MUST") ||
-				     !strcmp(sval, "MAY") ||
-				     !strncmp(sval, "X-", 2) ) {
+				if ( !strcasecmp(sval, "NAME") ||
+				     !strcasecmp(sval, "DESC") ||
+				     !strcasecmp(sval, "OBSOLETE") ||
+				     !strcasecmp(sval, "SUP") ||
+				     !strcasecmp(sval, "ABSTRACT") ||
+				     !strcasecmp(sval, "STRUCTURAL") ||
+				     !strcasecmp(sval, "AUXILIARY") ||
+				     !strcasecmp(sval, "MUST") ||
+				     !strcasecmp(sval, "MAY") ||
+				     !strncasecmp(sval, "X-", 2) ) {
 					/* Missing OID, backtrack */
 					ss = savepos;
 				} else if ( flags &
@@ -2459,7 +2460,7 @@ ldap_str2objectclass( LDAP_CONST char * s,
 		case TK_RIGHTPAREN:
 			return oc;
 		case TK_BAREWORD:
-			if ( !strcmp(sval,"NAME") ) {
+			if ( !strcasecmp(sval,"NAME") ) {
 				LDAP_FREE(sval);
 				if ( seen_name ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2476,7 +2477,7 @@ ldap_str2objectclass( LDAP_CONST char * s,
 					ldap_objectclass_free(oc);
 					return NULL;
 				}
-			} else if ( !strcmp(sval,"DESC") ) {
+			} else if ( !strcasecmp(sval,"DESC") ) {
 				LDAP_FREE(sval);
 				if ( seen_desc ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2496,7 +2497,7 @@ ldap_str2objectclass( LDAP_CONST char * s,
 				}
 				oc->oc_desc = sval;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"OBSOLETE") ) {
+			} else if ( !strcasecmp(sval,"OBSOLETE") ) {
 				LDAP_FREE(sval);
 				if ( seen_obsolete ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2507,7 +2508,7 @@ ldap_str2objectclass( LDAP_CONST char * s,
 				seen_obsolete = 1;
 				oc->oc_obsolete = LDAP_SCHEMA_YES;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"SUP") ) {
+			} else if ( !strcasecmp(sval,"SUP") ) {
 				LDAP_FREE(sval);
 				if ( seen_sup ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2524,7 +2525,7 @@ ldap_str2objectclass( LDAP_CONST char * s,
 					ldap_objectclass_free(oc);
 					return NULL;
 				}
-			} else if ( !strcmp(sval,"ABSTRACT") ) {
+			} else if ( !strcasecmp(sval,"ABSTRACT") ) {
 				LDAP_FREE(sval);
 				if ( seen_kind ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2535,7 +2536,7 @@ ldap_str2objectclass( LDAP_CONST char * s,
 				seen_kind = 1;
 				oc->oc_kind = LDAP_SCHEMA_ABSTRACT;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"STRUCTURAL") ) {
+			} else if ( !strcasecmp(sval,"STRUCTURAL") ) {
 				LDAP_FREE(sval);
 				if ( seen_kind ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2546,7 +2547,7 @@ ldap_str2objectclass( LDAP_CONST char * s,
 				seen_kind = 1;
 				oc->oc_kind = LDAP_SCHEMA_STRUCTURAL;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"AUXILIARY") ) {
+			} else if ( !strcasecmp(sval,"AUXILIARY") ) {
 				LDAP_FREE(sval);
 				if ( seen_kind ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2557,7 +2558,7 @@ ldap_str2objectclass( LDAP_CONST char * s,
 				seen_kind = 1;
 				oc->oc_kind = LDAP_SCHEMA_AUXILIARY;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"MUST") ) {
+			} else if ( !strcasecmp(sval,"MUST") ) {
 				LDAP_FREE(sval);
 				if ( seen_must ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2573,7 +2574,7 @@ ldap_str2objectclass( LDAP_CONST char * s,
 					return NULL;
 				}
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"MAY") ) {
+			} else if ( !strcasecmp(sval,"MAY") ) {
 				LDAP_FREE(sval);
 				if ( seen_may ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2691,14 +2692,14 @@ ldap_str2contentrule( LDAP_CONST char * s,
 			ss = savepos;
 			kind = get_token(&ss,&sval);
 			if ( kind == TK_BAREWORD ) {
-				if ( !strcmp(sval, "NAME") ||
-				     !strcmp(sval, "DESC") ||
-				     !strcmp(sval, "OBSOLETE") ||
-				     !strcmp(sval, "AUX") ||
-				     !strcmp(sval, "MUST") ||
-				     !strcmp(sval, "MAY") ||
-				     !strcmp(sval, "NOT") ||
-				     !strncmp(sval, "X-", 2) ) {
+				if ( !strcasecmp(sval, "NAME") ||
+				     !strcasecmp(sval, "DESC") ||
+				     !strcasecmp(sval, "OBSOLETE") ||
+				     !strcasecmp(sval, "AUX") ||
+				     !strcasecmp(sval, "MUST") ||
+				     !strcasecmp(sval, "MAY") ||
+				     !strcasecmp(sval, "NOT") ||
+				     !strncasecmp(sval, "X-", 2) ) {
 					/* Missing OID, backtrack */
 					ss = savepos;
 				} else if ( flags &
@@ -2734,7 +2735,7 @@ ldap_str2contentrule( LDAP_CONST char * s,
 		case TK_RIGHTPAREN:
 			return cr;
 		case TK_BAREWORD:
-			if ( !strcmp(sval,"NAME") ) {
+			if ( !strcasecmp(sval,"NAME") ) {
 				LDAP_FREE(sval);
 				if ( seen_name ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2751,7 +2752,7 @@ ldap_str2contentrule( LDAP_CONST char * s,
 					ldap_contentrule_free(cr);
 					return NULL;
 				}
-			} else if ( !strcmp(sval,"DESC") ) {
+			} else if ( !strcasecmp(sval,"DESC") ) {
 				LDAP_FREE(sval);
 				if ( seen_desc ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2771,7 +2772,7 @@ ldap_str2contentrule( LDAP_CONST char * s,
 				}
 				cr->cr_desc = sval;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"OBSOLETE") ) {
+			} else if ( !strcasecmp(sval,"OBSOLETE") ) {
 				LDAP_FREE(sval);
 				if ( seen_obsolete ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2782,7 +2783,7 @@ ldap_str2contentrule( LDAP_CONST char * s,
 				seen_obsolete = 1;
 				cr->cr_obsolete = LDAP_SCHEMA_YES;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"AUX") ) {
+			} else if ( !strcasecmp(sval,"AUX") ) {
 				LDAP_FREE(sval);
 				if ( seen_aux ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2798,7 +2799,7 @@ ldap_str2contentrule( LDAP_CONST char * s,
 					return NULL;
 				}
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"MUST") ) {
+			} else if ( !strcasecmp(sval,"MUST") ) {
 				LDAP_FREE(sval);
 				if ( seen_must ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2814,7 +2815,7 @@ ldap_str2contentrule( LDAP_CONST char * s,
 					return NULL;
 				}
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"MAY") ) {
+			} else if ( !strcasecmp(sval,"MAY") ) {
 				LDAP_FREE(sval);
 				if ( seen_may ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2830,7 +2831,7 @@ ldap_str2contentrule( LDAP_CONST char * s,
 					return NULL;
 				}
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"NOT") ) {
+			} else if ( !strcasecmp(sval,"NOT") ) {
 				LDAP_FREE(sval);
 				if ( seen_not ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2963,7 +2964,7 @@ ldap_str2structurerule( LDAP_CONST char * s,
 			}
 			return sr;
 		case TK_BAREWORD:
-			if ( !strcmp(sval,"NAME") ) {
+			if ( !strcasecmp(sval,"NAME") ) {
 				LDAP_FREE(sval);
 				if ( seen_name ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -2980,7 +2981,7 @@ ldap_str2structurerule( LDAP_CONST char * s,
 					ldap_structurerule_free(sr);
 					return NULL;
 				}
-			} else if ( !strcmp(sval,"DESC") ) {
+			} else if ( !strcasecmp(sval,"DESC") ) {
 				LDAP_FREE(sval);
 				if ( seen_desc ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -3000,7 +3001,7 @@ ldap_str2structurerule( LDAP_CONST char * s,
 				}
 				sr->sr_desc = sval;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"OBSOLETE") ) {
+			} else if ( !strcasecmp(sval,"OBSOLETE") ) {
 				LDAP_FREE(sval);
 				if ( seen_obsolete ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -3011,7 +3012,7 @@ ldap_str2structurerule( LDAP_CONST char * s,
 				seen_obsolete = 1;
 				sr->sr_obsolete = LDAP_SCHEMA_YES;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"FORM") ) {
+			} else if ( !strcasecmp(sval,"FORM") ) {
 				LDAP_FREE(sval);
 				if ( seen_nameform ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -3152,7 +3153,7 @@ ldap_str2nameform( LDAP_CONST char * s,
 			}
 			return nf;
 		case TK_BAREWORD:
-			if ( !strcmp(sval,"NAME") ) {
+			if ( !strcasecmp(sval,"NAME") ) {
 				LDAP_FREE(sval);
 				if ( seen_name ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -3169,7 +3170,7 @@ ldap_str2nameform( LDAP_CONST char * s,
 					ldap_nameform_free(nf);
 					return NULL;
 				}
-			} else if ( !strcmp(sval,"DESC") ) {
+			} else if ( !strcasecmp(sval,"DESC") ) {
 				LDAP_FREE(sval);
 				if ( seen_desc ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -3189,7 +3190,7 @@ ldap_str2nameform( LDAP_CONST char * s,
 				}
 				nf->nf_desc = sval;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"OBSOLETE") ) {
+			} else if ( !strcasecmp(sval,"OBSOLETE") ) {
 				LDAP_FREE(sval);
 				if ( seen_obsolete ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -3200,7 +3201,7 @@ ldap_str2nameform( LDAP_CONST char * s,
 				seen_obsolete = 1;
 				nf->nf_obsolete = LDAP_SCHEMA_YES;
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"MUST") ) {
+			} else if ( !strcasecmp(sval,"MUST") ) {
 				LDAP_FREE(sval);
 				if ( seen_must ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -3216,7 +3217,7 @@ ldap_str2nameform( LDAP_CONST char * s,
 					return NULL;
 				}
 				parse_whsp(&ss);
-			} else if ( !strcmp(sval,"MAY") ) {
+			} else if ( !strcasecmp(sval,"MAY") ) {
 				LDAP_FREE(sval);
 				if ( seen_may ) {
 					*code = LDAP_SCHERR_DUPOPT;
@@ -3267,27 +3268,27 @@ ldap_str2nameform( LDAP_CONST char * s,
 }
 
 static char *const err2text[] = {
-	"Success",
-	"Out of memory",
-	"Unexpected token",
-	"Missing opening parenthesis",
-	"Missing closing parenthesis",
-	"Expecting digit",
-	"Expecting a name",
-	"Bad description",
-	"Bad superiors",
-	"Duplicate option",
-	"Unexpected end of data",
-	"Missing required field",
-	"Out of order field"
+	N_("Success"),
+	N_("Out of memory"),
+	N_("Unexpected token"),
+	N_("Missing opening parenthesis"),
+	N_("Missing closing parenthesis"),
+	N_("Expecting digit"),
+	N_("Expecting a name"),
+	N_("Bad description"),
+	N_("Bad superiors"),
+	N_("Duplicate option"),
+	N_("Unexpected end of data"),
+	N_("Missing required field"),
+	N_("Out of order field")
 };
 
 char *
 ldap_scherr2str(int code)
 {
 	if ( code < 0 || code >= (int)(sizeof(err2text)/sizeof(char *)) ) {
-		return "Unknown error";
+		return _("Unknown error");
 	} else {
-		return err2text[code];
+		return _(err2text[code]);
 	}
 }

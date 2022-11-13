@@ -1,7 +1,7 @@
-/* $OpenLDAP: pkg/ldap/servers/slurpd/slurp.h,v 1.27.2.6 2003/12/18 03:25:14 kurt Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slurpd/slurp.h,v 1.30.2.7 2005/01/20 17:01:19 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2003 The OpenLDAP Foundation.
+ * Copyright 1998-2005 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,6 +58,7 @@
 	/* should be moved to portable.h.nt */
 #define ftruncate(a,b) _chsize(a,b)
 #define truncate(a,b) _lclose( _lcreat(a, 0))
+#define mkdir(a,b) mkdir(a)
 #define S_IRGRP 0
 #define S_IWGRP 0
 #endif

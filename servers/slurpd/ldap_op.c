@@ -1,7 +1,7 @@
-/* $OpenLDAP: pkg/ldap/servers/slurpd/ldap_op.c,v 1.33.2.11 2003/12/18 03:25:14 kurt Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slurpd/ldap_op.c,v 1.43.2.7 2005/08/13 14:34:03 ando Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2003 The OpenLDAP Foundation.
+ * Copyright 1998-2005 The OpenLDAP Foundation.
  * Portions Copyright 2003 Mark Benson.
  * All rights reserved.
  *
@@ -109,9 +109,9 @@ do_ldap(
 					re->re_dn, 0 );
 #else
 				Debug( LDAP_DEBUG_ANY,
-					"Error: ldap_add_s failed adding \"%s\": %s\n",
-					*errmsg ? *errmsg : ldap_err2string( lderr ),
-					re->re_dn, 0 );
+					"Error: ldap_add_s failed adding DN \"%s\": %s (%d)\n",
+					re->re_dn,
+					*errmsg ? *errmsg : ldap_err2string( lderr ), lderr );
 #endif
 			}
 			break;
@@ -126,9 +126,9 @@ do_ldap(
 					re->re_dn, 0 );
 #else
 				Debug( LDAP_DEBUG_ANY,
-					"Error: ldap_modify_s failed modifying \"%s\": %s\n",
-					*errmsg ? *errmsg : ldap_err2string( lderr ),
-					re->re_dn, 0 );
+					"Error: ldap_modify_s failed modifying DN \"%s\": %s (%d)\n",
+					re->re_dn,
+					*errmsg ? *errmsg : ldap_err2string( lderr ), lderr );
 #endif
 			}
 			break;
@@ -143,9 +143,9 @@ do_ldap(
 					re->re_dn, 0 );
 #else
 				Debug( LDAP_DEBUG_ANY,
-					"Error: ldap_delete_s failed deleting \"%s\": %s\n",
-					*errmsg ? *errmsg : ldap_err2string( lderr ),
-					re->re_dn, 0 );
+					"Error: ldap_delete_s failed deleting DN \"%s\": %s (%d)\n",
+					re->re_dn,
+					*errmsg ? *errmsg : ldap_err2string( lderr ), lderr );
 #endif
 			}
 			break;
@@ -160,9 +160,9 @@ do_ldap(
 					re->re_dn, 0 );
 #else
 				Debug( LDAP_DEBUG_ANY,
-					"Error: ldap_modrdn_s failed modifying %s: %s\n",
-					*errmsg ? *errmsg : ldap_err2string( lderr ),
-					re->re_dn, 0 );
+					"Error: ldap_modrdn_s failed modifying DN \"%s\": %s (%d)\n",
+					re->re_dn,
+					*errmsg ? *errmsg : ldap_err2string( lderr ), lderr );
 #endif
 			}
 			break;
@@ -174,7 +174,7 @@ do_ldap(
 				re->re_changetype, re->re_dn, 0 );
 #else
 			Debug( LDAP_DEBUG_ANY,
-				"Error: do_ldap: bad op \"%d\", dn = \"%s\"\n",
+				"Error: do_ldap: bad op \"%d\", DN \"%s\"\n",
 				re->re_changetype, re->re_dn, 0 );
 #endif
 			return DO_LDAP_ERR_FATAL;
@@ -253,8 +253,8 @@ op_ldap_add(
 #endif
 	rc = ldap_add_s( ri->ri_ldp, re->re_dn, ldmarr );
 
-	ldap_get_option( ri->ri_ldp, LDAP_OPT_ERROR_NUMBER, &lderr);
-	ldap_get_option( ri->ri_ldp, LDAP_OPT_ERROR_STRING, errmsg);
+	ldap_get_option( ri->ri_ldp, LDAP_OPT_ERROR_NUMBER, &lderr );
+	ldap_get_option( ri->ri_ldp, LDAP_OPT_ERROR_STRING, errmsg );
 	*errfree = 1;
 
     } else {
@@ -353,7 +353,6 @@ op_ldap_modify(
 	    nvals = 0;
 	    nops++;
 	    break;
-#ifdef LDAP_MOD_INCREMENT
 	case T_MODOPINCREMENT:
 	    state = T_MODOPINCREMENT;
 	    ldmarr = ( LDAPMod ** )
@@ -364,7 +363,6 @@ op_ldap_modify(
 	    nvals = 0;
 	    nops++;
 	    break;
-#endif
 	default:
 	    if ( state == AWAITING_OP ) {
 #ifdef NEW_LOGGING

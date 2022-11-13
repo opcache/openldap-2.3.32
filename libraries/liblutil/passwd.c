@@ -1,7 +1,7 @@
-/* $OpenLDAP: pkg/ldap/libraries/liblutil/passwd.c,v 1.59.2.15 2004/04/07 12:25:48 hyc Exp $ */
+/* $OpenLDAP: pkg/ldap/libraries/liblutil/passwd.c,v 1.74.2.14 2005/11/15 23:34:07 hyc Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2003 The OpenLDAP Foundation.
+ * Copyright 1998-2005 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,16 +41,7 @@
 #	endif
 #endif
 
-#ifdef SLAPD_KPASSWD
-#	include <ac/krb.h>
-#	include <ac/krb5.h>
-#endif
-
-/* KPASSWD/krb.h brings in a conflicting des.h so don't use both.
- * configure currently requires OpenSSL to enable LMHASH. Obviously
- * this requirement can be fulfilled by the KRB DES library as well.
- */
-#if defined(SLAPD_LMHASH) && !defined(DES_ENCRYPT)
+#if defined(SLAPD_LMHASH)
 #	include <openssl/des.h>
 #endif /* SLAPD_LMHASH */
 
@@ -88,6 +79,10 @@ static const unsigned char crypt64[] =
 static char *salt_format = NULL;
 #endif
 
+/* KLUDGE:
+ *  chk_fn is NULL iff name is {CLEARTEXT}
+ *     otherwise, things will break
+ */
 struct pw_scheme {
 	struct berval name;
 	LUTIL_PASSWD_CHK_FUNC *chk_fn;
@@ -121,16 +116,8 @@ static LUTIL_PASSWD_CHK_FUNC chk_lanman;
 static LUTIL_PASSWD_HASH_FUNC hash_lanman;
 #endif
 
-#ifdef SLAPD_NS_MTA_MD5
-static LUTIL_PASSWD_CHK_FUNC chk_ns_mta_md5;
-#endif
-
 #ifdef SLAPD_SPASSWD
 static LUTIL_PASSWD_CHK_FUNC chk_sasl;
-#endif
-
-#ifdef SLAPD_KPASSWD
-static LUTIL_PASSWD_CHK_FUNC chk_kerberos;
 #endif
 
 #ifdef SLAPD_CRYPT
@@ -149,6 +136,7 @@ static LUTIL_PASSWD_HASH_FUNC hash_clear;
 #endif
 
 static struct pw_slist *pw_schemes;
+static int pw_inited;
 
 static const struct pw_scheme pw_schemes_default[] =
 {
@@ -164,16 +152,8 @@ static const struct pw_scheme pw_schemes_default[] =
 	{ BER_BVC("{LANMAN}"),		chk_lanman, hash_lanman },
 #endif /* SLAPD_LMHASH */
 
-#ifdef SLAPD_NS_MTA_MD5
-	{ BER_BVC("{NS-MTA-MD5}"),	chk_ns_mta_md5, NULL },
-#endif /* SLAPD_NS_MTA_MD5 */
-
 #ifdef SLAPD_SPASSWD
 	{ BER_BVC("{SASL}"),		chk_sasl, NULL },
-#endif
-
-#ifdef SLAPD_KPASSWD
-	{ BER_BVC("{KERBEROS}"),	chk_kerberos, NULL },
 #endif
 
 #ifdef SLAPD_CRYPT
@@ -185,7 +165,7 @@ static const struct pw_scheme pw_schemes_default[] =
 
 #ifdef SLAPD_CLEARTEXT
 	/* pseudo scheme */
-	{ {0, "{CLEARTEXT}"},		NULL, hash_clear },
+	{ BER_BVC("{CLEARTEXT}"),	NULL, hash_clear },
 #endif
 
 	{ BER_BVNULL, NULL, NULL }
@@ -197,6 +177,8 @@ int lutil_passwd_add(
 	LUTIL_PASSWD_HASH_FUNC *hash )
 {
 	struct pw_slist *ptr;
+
+	if (!pw_inited) lutil_passwd_init();
 
 	ptr = ber_memalloc( sizeof( struct pw_slist ));
 	if (!ptr) return -1;
@@ -210,11 +192,12 @@ int lutil_passwd_add(
 
 void lutil_passwd_init()
 {
-	struct pw_slist *ptr;
 	struct pw_scheme *s;
 
+	pw_inited = 1;
+
 	for( s=(struct pw_scheme *)pw_schemes_default; s->name.bv_val; s++) {
-		if ( lutil_passwd_add( &s->name, s->chk_fn, s->hash_fn )) break;
+		if ( lutil_passwd_add( &s->name, s->chk_fn, s->hash_fn ) ) break;
 	}
 }
 
@@ -232,11 +215,19 @@ static const struct pw_scheme *get_scheme(
 	const char* scheme )
 {
 	struct pw_slist *pws;
+	struct berval bv;
 
-	if (!pw_schemes) lutil_passwd_init();
+	if (!pw_inited) lutil_passwd_init();
+
+	bv.bv_val = strchr( scheme, '}' );
+	if ( !bv.bv_val )
+		return NULL;
+
+	bv.bv_len = bv.bv_val - scheme + 1;
+	bv.bv_val = (char *) scheme;
 
 	for( pws=pw_schemes; pws; pws=pws->next ) {
-		if( strcasecmp(scheme, pws->s.name.bv_val ) == 0 ) {
+		if ( ber_bvstrcasecmp(&bv, &pws->s.name ) == 0 ) {
 			return &(pws->s);
 		}
 	}
@@ -313,7 +304,7 @@ lutil_passwd(
 		return -1;
 	}
 
-	if (!pw_schemes) lutil_passwd_init();
+	if (!pw_inited) lutil_passwd_init();
 
 	for( pws=pw_schemes; pws; pws=pws->next ) {
 		if( pws->s.chk_fn ) {
@@ -328,36 +319,37 @@ lutil_passwd(
 	}
 
 #ifdef SLAPD_CLEARTEXT
+	/* Do we think there is a scheme specifier here that we
+	* didn't recognize? Assume a scheme name is at least 1 character.
+	*/
+	if (( passwd->bv_val[0] == '{' ) &&
+		( strchr( passwd->bv_val, '}' ) > passwd->bv_val+1 ))
+	{
+		return 1;
+	}
 	if( is_allowed_scheme("{CLEARTEXT}", schemes ) ) {
-		return (( passwd->bv_len == cred->bv_len ) &&
-				( passwd->bv_val[0] != '{' /*'}'*/ ))
-			? memcmp( passwd->bv_val, cred->bv_val, passwd->bv_len )
+		return ( passwd->bv_len == cred->bv_len ) ?
+			memcmp( passwd->bv_val, cred->bv_val, passwd->bv_len )
 			: 1;
 	}
 #endif
 	return 1;
 }
 
-struct berval * lutil_passwd_generate( ber_len_t len )
+int lutil_passwd_generate( struct berval *pw, ber_len_t len )
 {
-	struct berval *pw;
 
-	if( len < 1 ) return NULL;
-
-	pw = ber_memalloc( sizeof( struct berval ) );
-	if( pw == NULL ) return NULL;
+	if( len < 1 ) return -1;
 
 	pw->bv_len = len;
 	pw->bv_val = ber_memalloc( len + 1 );
 
 	if( pw->bv_val == NULL ) {
-		ber_memfree( pw );
-		return NULL;
+		return -1;
 	}
 
-	if( lutil_entropy( pw->bv_val, pw->bv_len) < 0 ) {
-		ber_bvfree( pw );
-		return NULL; 
+	if( lutil_entropy( (unsigned char *) pw->bv_val, pw->bv_len) < 0 ) {
+		return -1; 
 	}
 
 	for( len = 0; len < pw->bv_len; len++ ) {
@@ -367,59 +359,69 @@ struct berval * lutil_passwd_generate( ber_len_t len )
 
 	pw->bv_val[len] = '\0';
 	
-	return pw;
+	return 0;
 }
 
-struct berval * lutil_passwd_hash(
+int lutil_passwd_hash(
 	const struct berval * passwd,
 	const char * method,
+	struct berval *hash,
 	const char **text )
 {
 	const struct pw_scheme *sc = get_scheme( method );
 
-	if( text ) *text = NULL;
-	if( sc == NULL ) return NULL;
-	if( ! sc->hash_fn ) return NULL;
+	hash->bv_val = NULL;
+	hash->bv_len = 0;
 
-	return (sc->hash_fn)( &sc->name, passwd, text );
+	if( sc == NULL ) {
+		if( text ) *text = "scheme not recognized";
+		return -1;
+	}
+
+	if( ! sc->hash_fn ) {
+		if( text ) *text = "scheme provided no hash function";
+		return -1;
+	}
+
+	if( text ) *text = NULL;
+
+	return (sc->hash_fn)( &sc->name, passwd, hash, text );
 }
 
 /* pw_string is only called when SLAPD_LMHASH or SLAPD_CRYPT is defined */
 #if defined(SLAPD_LMHASH) || defined(SLAPD_CRYPT)
-static struct berval * pw_string(
+static int pw_string(
 	const struct berval *sc,
-	const struct berval *passwd )
+	struct berval *passwd )
 {
-	struct berval *pw = ber_memalloc( sizeof( struct berval ) );
-	if( pw == NULL ) return NULL;
+	struct berval pw;
 
-	pw->bv_len = sc->bv_len + passwd->bv_len;
-	pw->bv_val = ber_memalloc( pw->bv_len + 1 );
+	pw.bv_len = sc->bv_len + passwd->bv_len;
+	pw.bv_val = ber_memalloc( pw.bv_len + 1 );
 
-	if( pw->bv_val == NULL ) {
-		ber_memfree( pw );
-		return NULL;
+	if( pw.bv_val == NULL ) {
+		return LUTIL_PASSWD_ERR;
 	}
 
-	AC_MEMCPY( pw->bv_val, sc->bv_val, sc->bv_len );
-	AC_MEMCPY( &pw->bv_val[sc->bv_len], passwd->bv_val, passwd->bv_len );
+	AC_MEMCPY( pw.bv_val, sc->bv_val, sc->bv_len );
+	AC_MEMCPY( &pw.bv_val[sc->bv_len], passwd->bv_val, passwd->bv_len );
 
-	pw->bv_val[pw->bv_len] = '\0';
-	return pw;
+	pw.bv_val[pw.bv_len] = '\0';
+	*passwd = pw;
+
+	return LUTIL_PASSWD_OK;
 }
 #endif /* SLAPD_LMHASH || SLAPD_CRYPT */
 
-static struct berval * pw_string64(
+static int pw_string64(
 	const struct berval *sc,
 	const struct berval *hash,
+	struct berval *b64,
 	const struct berval *salt )
 {
 	int rc;
 	struct berval string;
-	struct berval *b64 = ber_memalloc( sizeof(struct berval) );
 	size_t b64len;
-
-	if( b64 == NULL ) return NULL;
 
 	if( salt ) {
 		/* need to base64 combined string */
@@ -427,8 +429,7 @@ static struct berval * pw_string64(
 		string.bv_val = ber_memalloc( string.bv_len + 1 );
 
 		if( string.bv_val == NULL ) {
-			ber_memfree( b64 );
-			return NULL;
+			return LUTIL_PASSWD_ERR;
 		}
 
 		AC_MEMCPY( string.bv_val, hash->bv_val,
@@ -447,27 +448,25 @@ static struct berval * pw_string64(
 
 	if( b64->bv_val == NULL ) {
 		if( salt ) ber_memfree( string.bv_val );
-		ber_memfree( b64 );
-		return NULL;
+		return LUTIL_PASSWD_ERR;
 	}
 
 	AC_MEMCPY(b64->bv_val, sc->bv_val, sc->bv_len);
 
 	rc = lutil_b64_ntop(
-		string.bv_val, string.bv_len,
+		(unsigned char *) string.bv_val, string.bv_len,
 		&b64->bv_val[sc->bv_len], b64len );
 
 	if( salt ) ber_memfree( string.bv_val );
 	
 	if( rc < 0 ) {
-		ber_bvfree( b64 );
-		return NULL;
+		return LUTIL_PASSWD_ERR;
 	}
 
 	/* recompute length */
 	b64->bv_len = sc->bv_len + rc;
 	assert( strlen(b64->bv_val) == b64->bv_len );
-	return b64;
+	return LUTIL_PASSWD_OK;
 }
 
 /* PASSWORD CHECK ROUTINES */
@@ -484,23 +483,23 @@ static int chk_ssha1(
 	int rc;
 	unsigned char *orig_pass = NULL;
 
-	/* safety check */
-	if (LUTIL_BASE64_DECODE_LEN(passwd->bv_len) <
-		sizeof(SHA1digest)+SALT_SIZE) {
-		return -1;
+	/* safety check -- must have some salt */
+	if (LUTIL_BASE64_DECODE_LEN(passwd->bv_len) <= sizeof(SHA1digest)) {
+		return LUTIL_PASSWD_ERR;
 	}
 
 	/* decode base64 password */
 	orig_pass = (unsigned char *) ber_memalloc( (size_t) (
 		LUTIL_BASE64_DECODE_LEN(passwd->bv_len) + 1) );
 
-	if( orig_pass == NULL ) return -1;
+	if( orig_pass == NULL ) return LUTIL_PASSWD_ERR;
 
 	rc = lutil_b64_pton(passwd->bv_val, orig_pass, passwd->bv_len);
 
-	if (rc < (int)(sizeof(SHA1digest)+SALT_SIZE)) {
+	/* safety check -- must have some salt */
+	if (rc <= (int)(sizeof(SHA1digest))) {
 		ber_memfree(orig_pass);
-		return -1;
+		return LUTIL_PASSWD_ERR;
 	}
  
 	/* hash credentials with salt */
@@ -515,7 +514,7 @@ static int chk_ssha1(
 	/* compare */
 	rc = memcmp((char *)orig_pass, (char *)SHA1digest, sizeof(SHA1digest));
 	ber_memfree(orig_pass);
-	return rc ? 1 : 0;
+	return rc ? LUTIL_PASSWD_ERR : LUTIL_PASSWD_OK;
 }
 
 static int chk_sha1(
@@ -531,20 +530,20 @@ static int chk_sha1(
  
 	/* safety check */
 	if (LUTIL_BASE64_DECODE_LEN(passwd->bv_len) < sizeof(SHA1digest)) {
-		return -1;
+		return LUTIL_PASSWD_ERR;
 	}
 
 	/* base64 un-encode password */
 	orig_pass = (unsigned char *) ber_memalloc( (size_t) (
 		LUTIL_BASE64_DECODE_LEN(passwd->bv_len) + 1) );
 
-	if( orig_pass == NULL ) return -1;
+	if( orig_pass == NULL ) return LUTIL_PASSWD_ERR;
 
 	rc = lutil_b64_pton(passwd->bv_val, orig_pass, passwd->bv_len);
 
 	if( rc != sizeof(SHA1digest) ) {
 		ber_memfree(orig_pass);
-		return -1;
+		return LUTIL_PASSWD_ERR;
 	}
  
 	/* hash credentials with salt */
@@ -556,7 +555,7 @@ static int chk_sha1(
 	/* compare */
 	rc = memcmp((char *)orig_pass, (char *)SHA1digest, sizeof(SHA1digest));
 	ber_memfree(orig_pass);
-	return rc ? 1 : 0;
+	return rc ? LUTIL_PASSWD_ERR : LUTIL_PASSWD_OK;
 }
 #endif
 
@@ -572,22 +571,21 @@ static int chk_smd5(
 	unsigned char *orig_pass = NULL;
 
 	/* safety check */
-	if (LUTIL_BASE64_DECODE_LEN(passwd->bv_len) <
-		sizeof(MD5digest)+SALT_SIZE) {
-		return -1;
+	if (LUTIL_BASE64_DECODE_LEN(passwd->bv_len) <= sizeof(MD5digest)) {
+		return LUTIL_PASSWD_ERR;
 	}
 
 	/* base64 un-encode password */
 	orig_pass = (unsigned char *) ber_memalloc( (size_t) (
 		LUTIL_BASE64_DECODE_LEN(passwd->bv_len) + 1) );
 
-	if( orig_pass == NULL ) return -1;
+	if( orig_pass == NULL ) return LUTIL_PASSWD_ERR;
 
 	rc = lutil_b64_pton(passwd->bv_val, orig_pass, passwd->bv_len);
 
-	if (rc < (int)(sizeof(MD5digest)+SALT_SIZE)) {
+	if (rc <= (int)(sizeof(MD5digest))) {
 		ber_memfree(orig_pass);
-		return -1;
+		return LUTIL_PASSWD_ERR;
 	}
 
 	/* hash credentials with salt */
@@ -603,7 +601,7 @@ static int chk_smd5(
 	/* compare */
 	rc = memcmp((char *)orig_pass, (char *)MD5digest, sizeof(MD5digest));
 	ber_memfree(orig_pass);
-	return rc ? 1 : 0;
+	return rc ? LUTIL_PASSWD_ERR : LUTIL_PASSWD_OK;
 }
 
 static int chk_md5(
@@ -619,19 +617,19 @@ static int chk_md5(
 
 	/* safety check */
 	if (LUTIL_BASE64_DECODE_LEN(passwd->bv_len) < sizeof(MD5digest)) {
-		return -1;
+		return LUTIL_PASSWD_ERR;
 	}
 
 	/* base64 un-encode password */
 	orig_pass = (unsigned char *) ber_memalloc( (size_t) (
 		LUTIL_BASE64_DECODE_LEN(passwd->bv_len) + 1) );
 
-	if( orig_pass == NULL ) return -1;
+	if( orig_pass == NULL ) return LUTIL_PASSWD_ERR;
 
 	rc = lutil_b64_pton(passwd->bv_val, orig_pass, passwd->bv_len);
 	if ( rc != sizeof(MD5digest) ) {
 		ber_memfree(orig_pass);
-		return -1;
+		return LUTIL_PASSWD_ERR;
 	}
 
 	/* hash credentials with salt */
@@ -644,7 +642,7 @@ static int chk_md5(
 	/* compare */
 	rc = memcmp((char *)orig_pass, (char *)MD5digest, sizeof(MD5digest));
 	ber_memfree(orig_pass);
-	return rc ? 1 : 0;
+	return rc ? LUTIL_PASSWD_ERR : LUTIL_PASSWD_OK;
 }
 
 #ifdef SLAPD_LMHASH
@@ -707,18 +705,21 @@ static int chk_md5(
  */
 
 static void lmPasswd_to_key(
-	const unsigned char *lmPasswd,
+	const char *lmPasswd,
 	des_cblock *key)
 {
+	const unsigned char *lpw = (const unsigned char *) lmPasswd;
+	unsigned char *k = (unsigned char *) key;
+
 	/* make room for parity bits */
-	((char *)key)[0] = lmPasswd[0];
-	((char *)key)[1] = ((lmPasswd[0]&0x01)<<7) | (lmPasswd[1]>>1);
-	((char *)key)[2] = ((lmPasswd[1]&0x03)<<6) | (lmPasswd[2]>>2);
-	((char *)key)[3] = ((lmPasswd[2]&0x07)<<5) | (lmPasswd[3]>>3);
-	((char *)key)[4] = ((lmPasswd[3]&0x0F)<<4) | (lmPasswd[4]>>4);
-	((char *)key)[5] = ((lmPasswd[4]&0x1F)<<3) | (lmPasswd[5]>>5);
-	((char *)key)[6] = ((lmPasswd[5]&0x3F)<<2) | (lmPasswd[6]>>6);
-	((char *)key)[7] = ((lmPasswd[6]&0x7F)<<1);
+	k[0] = lpw[0];
+	k[1] = ((lpw[0] & 0x01) << 7) | (lpw[1] >> 1);
+	k[2] = ((lpw[1] & 0x03) << 6) | (lpw[2] >> 2);
+	k[3] = ((lpw[2] & 0x07) << 5) | (lpw[3] >> 3);
+	k[4] = ((lpw[3] & 0x0F) << 4) | (lpw[4] >> 4);
+	k[5] = ((lpw[4] & 0x1F) << 3) | (lpw[5] >> 5);
+	k[6] = ((lpw[5] & 0x3F) << 2) | (lpw[6] >> 6);
+	k[7] = ((lpw[6] & 0x7F) << 1);
 		
 	des_set_odd_parity( key );
 }	
@@ -739,12 +740,12 @@ static int chk_lanman(
 	
 	for( i=0; i<cred->bv_len; i++) {
 		if(cred->bv_val[i] == '\0') {
-			return -1;	/* NUL character in password */
+			return LUTIL_PASSWD_ERR;	/* NUL character in password */
 		}
 	}
 	
 	if( cred->bv_val[i] != '\0' ) {
-		return -1;	/* passwd must behave like a string */
+		return LUTIL_PASSWD_ERR;	/* passwd must behave like a string */
 	}
 	
 	strncpy( UcasePassword, cred->bv_val, 14 );
@@ -770,63 +771,9 @@ static int chk_lanman(
 	storedPasswordHash[32] = '\0';
 	ldap_pvt_str2lower( storedPasswordHash );
 	
-	return memcmp( PasswordHash, storedPasswordHash, 32) ? 1 : 0;
+	return memcmp( PasswordHash, storedPasswordHash, 32) ? LUTIL_PASSWD_ERR : LUTIL_PASSWD_OK;
 }
 #endif /* SLAPD_LMHASH */
-
-#ifdef SLAPD_NS_MTA_MD5
-#define NS_MTA_MD5_PASSLEN	64
-static int chk_ns_mta_md5(
-	const struct berval *scheme,
-	const struct berval *passwd,
-	const struct berval *cred,
-	const char **text )
-{
-	lutil_MD5_CTX MD5context;
-	unsigned char MD5digest[LUTIL_MD5_BYTES], c;
-	char buffer[LUTIL_MD5_BYTES*2];
-	int i;
-
-	if( passwd->bv_len != NS_MTA_MD5_PASSLEN ) {
-		return 1;
-	}
-
-	/* hash credentials with salt */
-	lutil_MD5Init(&MD5context);
-	lutil_MD5Update(&MD5context,
-		(const unsigned char *) &passwd->bv_val[32],
-		32 );
-
-	c = 0x59;
-	lutil_MD5Update(&MD5context,
-		(const unsigned char *) &c,
-		1 );
-
-	lutil_MD5Update(&MD5context,
-		(const unsigned char *) cred->bv_val,
-		cred->bv_len );
-
-	c = 0xF7;
-	lutil_MD5Update(&MD5context,
-		(const unsigned char *) &c,
-		1 );
-
-	lutil_MD5Update(&MD5context,
-		(const unsigned char *) &passwd->bv_val[32],
-		32 );
-
-	lutil_MD5Final(MD5digest, &MD5context);
-
-	for( i=0; i < sizeof( MD5digest ); i++ ) {
-		buffer[i+i]   = "0123456789abcdef"[(MD5digest[i]>>4) & 0x0F]; 
-		buffer[i+i+1] = "0123456789abcdef"[ MD5digest[i] & 0x0F]; 
-	}
-
-	/* compare */
-	return memcmp((char *)passwd->bv_val,
-		(char *)buffer, sizeof(buffer)) ? 1 : 0;
-}
-#endif
 
 #ifdef SLAPD_SPASSWD
 #ifdef HAVE_CYRUS_SASL
@@ -844,25 +791,25 @@ static int chk_sasl(
 
 	for( i=0; i<cred->bv_len; i++) {
 		if(cred->bv_val[i] == '\0') {
-			return 1;	/* NUL character in password */
+			return LUTIL_PASSWD_ERR;	/* NUL character in password */
 		}
 	}
 
 	if( cred->bv_val[i] != '\0' ) {
-		return 1;	/* cred must behave like a string */
+		return LUTIL_PASSWD_ERR;	/* cred must behave like a string */
 	}
 
 	for( i=0; i<passwd->bv_len; i++) {
 		if(passwd->bv_val[i] == '\0') {
-			return 1;	/* NUL character in password */
+			return LUTIL_PASSWD_ERR;	/* NUL character in password */
 		}
 	}
 
 	if( passwd->bv_val[i] != '\0' ) {
-		return 1;	/* passwd must behave like a string */
+		return LUTIL_PASSWD_ERR;	/* passwd must behave like a string */
 	}
 
-	rtn = 1;
+	rtn = LUTIL_PASSWD_ERR;
 
 #ifdef HAVE_CYRUS_SASL
 	if( lutil_passwd_sasl_conn != NULL ) {
@@ -877,187 +824,13 @@ static int chk_sasl(
 			passwd->bv_val, passwd->bv_len,
 			cred->bv_val, cred->bv_len );
 # endif
-		rtn = ( sc != SASL_OK );
+		rtn = ( sc != SASL_OK ) ? LUTIL_PASSWD_ERR : LUTIL_PASSWD_OK;
 	}
 #endif
 
 	return rtn;
 }
 #endif
-
-#ifdef SLAPD_KPASSWD
-static int chk_kerberos(
-	const struct berval *sc,
-	const struct berval * passwd,
-	const struct berval * cred,
-	const char **text )
-{
-	unsigned int i;
-	int rtn;
-
-	for( i=0; i<cred->bv_len; i++) {
-		if(cred->bv_val[i] == '\0') {
-			return 1;	/* NUL character in password */
-		}
-	}
-
-	if( cred->bv_val[i] != '\0' ) {
-		return 1;	/* cred must behave like a string */
-	}
-
-	for( i=0; i<passwd->bv_len; i++) {
-		if(passwd->bv_val[i] == '\0') {
-			return 1;	/* NUL character in password */
-		}
-	}
-
-	if( passwd->bv_val[i] != '\0' ) {
-		return 1;	/* passwd must behave like a string */
-	}
-
-	rtn = 1;
-
-#ifdef HAVE_KRB5 /* HAVE_HEIMDAL_KRB5 */
-	{
-/* Portions:
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska H\xf6gskolan
- * (Royal Institute of Technology, Stockholm, Sweden).
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * 3. Neither the name of the Institute nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
-
-		krb5_context context;
-   		krb5_error_code ret;
-   		krb5_creds creds;
-   		krb5_get_init_creds_opt get_options;
-   		krb5_verify_init_creds_opt verify_options;
-		krb5_principal client, server;
-#ifdef notdef
-		krb5_preauthtype pre_auth_types[] = {KRB5_PADATA_ENC_TIMESTAMP};
-#endif
-
-		ret = krb5_init_context( &context );
-		if (ret) {
-			return 1;
-		}
-
-#ifdef notdef
-		krb5_get_init_creds_opt_set_preauth_list(&get_options,
-			pre_auth_types, 1);
-#endif
-
-   		krb5_get_init_creds_opt_init( &get_options );
-
-		krb5_verify_init_creds_opt_init( &verify_options );
-	
-		ret = krb5_parse_name( context, passwd->bv_val, &client );
-
-		if (ret) {
-			krb5_free_context( context );
-			return 1;
-		}
-
-		ret = krb5_get_init_creds_password( context,
-			&creds, client, cred->bv_val, NULL,
-			NULL, 0, NULL, &get_options );
-
-		if (ret) {
-			krb5_free_principal( context, client );
-			krb5_free_context( context );
-			return 1;
-		}
-
-		{
-			char *host = ldap_pvt_get_fqdn( NULL );
-
-			if( host == NULL ) {
-				krb5_free_principal( context, client );
-				krb5_free_context( context );
-				return 1;
-			}
-
-			ret = krb5_sname_to_principal( context,
-				host, "ldap", KRB5_NT_SRV_HST, &server );
-
-			ber_memfree( host );
-		}
-
-		if (ret) {
-			krb5_free_principal( context, client );
-			krb5_free_context( context );
-			return 1;
-		}
-
-		ret = krb5_verify_init_creds( context,
-			&creds, server, NULL, NULL, &verify_options );
-
-		krb5_free_principal( context, client );
-		krb5_free_principal( context, server );
-		krb5_free_cred_contents( context, &creds );
-		krb5_free_context( context );
-
-		rtn = !!ret;
-	}
-#elif	defined(HAVE_KRB4)
-	{
-		/* Borrowed from Heimdal kpopper */
-/* Portions:
- * Copyright (c) 1989 Regents of the University of California.
- * All rights reserved.  The Berkeley software License Agreement
- * specifies the terms and conditions for redistribution.
- */
-
-		int status;
-		char lrealm[REALM_SZ];
-		char tkt[MAXHOSTNAMELEN];
-
-		status = krb_get_lrealm(lrealm,1);
-		if (status == KFAILURE) {
-			return 1;
-		}
-
-		snprintf(tkt, sizeof(tkt), "%s_slapd.%u",
-			TKT_ROOT, (unsigned)getpid());
-		krb_set_tkt_string (tkt);
-
-		status = krb_verify_user( passwd->bv_val, "", lrealm,
-			cred->bv_val, 1, "ldap");
-
-		dest_tkt(); /* no point in keeping the tickets */
-
-		return status == KFAILURE;
-	}
-#endif
-
-	return rtn;
-}
-#endif /* SLAPD_KPASSWD */
 
 #ifdef SLAPD_CRYPT
 static int chk_crypt(
@@ -1066,41 +839,41 @@ static int chk_crypt(
 	const struct berval * cred,
 	const char **text )
 {
-	char *cr;
 	unsigned int i;
+	char *cr;
 
 	for( i=0; i<cred->bv_len; i++) {
 		if(cred->bv_val[i] == '\0') {
-			return 1;	/* NUL character in password */
+			return LUTIL_PASSWD_ERR;	/* NUL character in password */
 		}
 	}
 
 	if( cred->bv_val[i] != '\0' ) {
-		return -1;	/* cred must behave like a string */
+		return LUTIL_PASSWD_ERR;	/* cred must behave like a string */
 	}
 
 	if( passwd->bv_len < 2 ) {
-		return -1;	/* passwd must be at least two characters long */
+		return LUTIL_PASSWD_ERR;	/* passwd must be at least two characters long */
 	}
 
 	for( i=0; i<passwd->bv_len; i++) {
 		if(passwd->bv_val[i] == '\0') {
-			return -1;	/* NUL character in password */
+			return LUTIL_PASSWD_ERR;	/* NUL character in password */
 		}
 	}
 
 	if( passwd->bv_val[i] != '\0' ) {
-		return -1;	/* passwd must behave like a string */
+		return LUTIL_PASSWD_ERR;	/* passwd must behave like a string */
 	}
 
 	cr = crypt( cred->bv_val, passwd->bv_val );
 
 	if( cr == NULL || cr[0] == '\0' ) {
 		/* salt must have been invalid */
-		return -1;
+		return LUTIL_PASSWD_ERR;
 	}
 
-	return strcmp( passwd->bv_val, cr ) ? 1 : 0;
+	return strcmp( passwd->bv_val, cr ) ? LUTIL_PASSWD_ERR : LUTIL_PASSWD_OK;
 }
 
 # if defined( HAVE_GETPWNAM ) && defined( HAVE_PW_PASSWD )
@@ -1111,32 +884,32 @@ static int chk_unix(
 	const char **text )
 {
 	unsigned int i;
-	char *pw,*cr;
+	char *pw, *cr;
 
 	for( i=0; i<cred->bv_len; i++) {
 		if(cred->bv_val[i] == '\0') {
-			return -1;	/* NUL character in password */
+			return LUTIL_PASSWD_ERR;	/* NUL character in password */
 		}
 	}
 	if( cred->bv_val[i] != '\0' ) {
-		return -1;	/* cred must behave like a string */
+		return LUTIL_PASSWD_ERR;	/* cred must behave like a string */
 	}
 
 	for( i=0; i<passwd->bv_len; i++) {
 		if(passwd->bv_val[i] == '\0') {
-			return -1;	/* NUL character in password */
+			return LUTIL_PASSWD_ERR;	/* NUL character in password */
 		}
 	}
 
 	if( passwd->bv_val[i] != '\0' ) {
-		return -1;	/* passwd must behave like a string */
+		return LUTIL_PASSWD_ERR;	/* passwd must behave like a string */
 	}
 
 	{
 		struct passwd *pwd = getpwnam(passwd->bv_val);
 
 		if(pwd == NULL) {
-			return -1;	/* not found */
+			return LUTIL_PASSWD_ERR;	/* not found */
 		}
 
 		pw = pwd->pw_passwd;
@@ -1162,17 +935,17 @@ static int chk_unix(
 
 	if( pw == NULL || pw[0] == '\0' || pw[1] == '\0' ) {
 		/* password must must be at least two characters long */
-		return -1;
+		return LUTIL_PASSWD_ERR;
 	}
 
 	cr = crypt(cred->bv_val, pw);
 
 	if( cr == NULL || cr[0] == '\0' ) {
 		/* salt must have been invalid */
-		return -1;
+		return LUTIL_PASSWD_ERR;
 	}
 
-	return strcmp(pw, cr) ? 1 : 0;
+	return strcmp(pw, cr) ? LUTIL_PASSWD_ERR : LUTIL_PASSWD_OK;
 
 }
 # endif
@@ -1181,9 +954,10 @@ static int chk_unix(
 /* PASSWORD GENERATION ROUTINES */
 
 #ifdef LUTIL_SHA1_BYTES
-static struct berval *hash_ssha1(
+static int hash_ssha1(
 	const struct berval *scheme,
 	const struct berval  *passwd,
+	struct berval *hash,
 	const char **text )
 {
 	lutil_SHA1_CTX  SHA1context;
@@ -1192,13 +966,13 @@ static struct berval *hash_ssha1(
 	struct berval digest;
 	struct berval salt;
 
-	digest.bv_val = SHA1digest;
+	digest.bv_val = (char *) SHA1digest;
 	digest.bv_len = sizeof(SHA1digest);
 	salt.bv_val = saltdata;
 	salt.bv_len = sizeof(saltdata);
 
-	if( lutil_entropy( salt.bv_val, salt.bv_len) < 0 ) {
-		return NULL; 
+	if( lutil_entropy( (unsigned char *) salt.bv_val, salt.bv_len) < 0 ) {
+		return LUTIL_PASSWD_ERR; 
 	}
 
 	lutil_SHA1Init( &SHA1context );
@@ -1208,18 +982,19 @@ static struct berval *hash_ssha1(
 		(const unsigned char *)salt.bv_val, salt.bv_len );
 	lutil_SHA1Final( SHA1digest, &SHA1context );
 
-	return pw_string64( scheme, &digest, &salt);
+	return pw_string64( scheme, &digest, hash, &salt);
 }
 
-static struct berval *hash_sha1(
+static int hash_sha1(
 	const struct berval *scheme,
 	const struct berval  *passwd,
+	struct berval *hash,
 	const char **text )
 {
 	lutil_SHA1_CTX  SHA1context;
 	unsigned char   SHA1digest[LUTIL_SHA1_BYTES];
 	struct berval digest;
-	digest.bv_val = SHA1digest;
+	digest.bv_val = (char *) SHA1digest;
 	digest.bv_len = sizeof(SHA1digest);
      
 	lutil_SHA1Init( &SHA1context );
@@ -1227,13 +1002,14 @@ static struct berval *hash_sha1(
 		(const unsigned char *)passwd->bv_val, passwd->bv_len );
 	lutil_SHA1Final( SHA1digest, &SHA1context );
             
-	return pw_string64( scheme, &digest, NULL);
+	return pw_string64( scheme, &digest, hash, NULL);
 }
 #endif
 
-static struct berval *hash_smd5(
+static int hash_smd5(
 	const struct berval *scheme,
 	const struct berval  *passwd,
+	struct berval *hash,
 	const char **text )
 {
 	lutil_MD5_CTX   MD5context;
@@ -1242,13 +1018,13 @@ static struct berval *hash_smd5(
 	struct berval digest;
 	struct berval salt;
 
-	digest.bv_val = MD5digest;
+	digest.bv_val = (char *) MD5digest;
 	digest.bv_len = sizeof(MD5digest);
 	salt.bv_val = saltdata;
 	salt.bv_len = sizeof(saltdata);
 
-	if( lutil_entropy( salt.bv_val, salt.bv_len) < 0 ) {
-		return NULL; 
+	if( lutil_entropy( (unsigned char *) salt.bv_val, salt.bv_len) < 0 ) {
+		return LUTIL_PASSWD_ERR; 
 	}
 
 	lutil_MD5Init( &MD5context );
@@ -1258,12 +1034,13 @@ static struct berval *hash_smd5(
 		(const unsigned char *) salt.bv_val, salt.bv_len );
 	lutil_MD5Final( MD5digest, &MD5context );
 
-	return pw_string64( scheme, &digest, &salt );
+	return pw_string64( scheme, &digest, hash, &salt );
 }
 
-static struct berval *hash_md5(
+static int hash_md5(
 	const struct berval *scheme,
 	const struct berval  *passwd,
+	struct berval *hash,
 	const char **text )
 {
 	lutil_MD5_CTX   MD5context;
@@ -1271,7 +1048,7 @@ static struct berval *hash_md5(
 
 	struct berval digest;
 
-	digest.bv_val = MD5digest;
+	digest.bv_val = (char *) MD5digest;
 	digest.bv_len = sizeof(MD5digest);
 
 	lutil_MD5Init( &MD5context );
@@ -1279,14 +1056,15 @@ static struct berval *hash_md5(
 		(const unsigned char *) passwd->bv_val, passwd->bv_len );
 	lutil_MD5Final( MD5digest, &MD5context );
 
-	return pw_string64( scheme, &digest, NULL );
+	return pw_string64( scheme, &digest, hash, NULL );
 ;
 }
 
 #ifdef SLAPD_LMHASH 
-static struct berval *hash_lanman(
+static int hash_lanman(
 	const struct berval *scheme,
 	const struct berval *passwd,
+	struct berval *hash,
 	const char **text )
 {
 
@@ -1297,16 +1075,15 @@ static struct berval *hash_lanman(
 	des_cblock StdText = "KGS!@#$%";
 	des_cblock PasswordHash1, PasswordHash2;
 	char PasswordHash[33];
-	struct berval hash;
 	
 	for( i=0; i<passwd->bv_len; i++) {
 		if(passwd->bv_val[i] == '\0') {
-			return NULL;	/* NUL character in password */
+			return LUTIL_PASSWD_ERR;	/* NUL character in password */
 		}
 	}
 	
 	if( passwd->bv_val[i] != '\0' ) {
-		return NULL;	/* passwd must behave like a string */
+		return LUTIL_PASSWD_ERR;	/* passwd must behave like a string */
 	}
 	
 	strncpy( UcasePassword, passwd->bv_val, 14 );
@@ -1327,35 +1104,35 @@ static struct berval *hash_lanman(
 		PasswordHash2[0],PasswordHash2[1],PasswordHash2[2],PasswordHash2[3],
 		PasswordHash2[4],PasswordHash2[5],PasswordHash2[6],PasswordHash2[7] );
 	
-	hash.bv_val = PasswordHash;
-	hash.bv_len = 32;
+	hash->bv_val = PasswordHash;
+	hash->bv_len = 32;
 	
-	return pw_string( scheme, &hash );
+	return pw_string( scheme, hash );
 }
 #endif /* SLAPD_LMHASH */
 
 #ifdef SLAPD_CRYPT
-static struct berval *hash_crypt(
+static int hash_crypt(
 	const struct berval *scheme,
 	const struct berval *passwd,
+	struct berval *hash,
 	const char **text )
 {
-	struct berval hash;
 	unsigned char salt[32];	/* salt suitable for most anything */
 	unsigned int i;
 
 	for( i=0; i<passwd->bv_len; i++) {
 		if(passwd->bv_val[i] == '\0') {
-			return NULL;	/* NUL character in password */
+			return LUTIL_PASSWD_ERR;	/* NUL character in password */
 		}
 	}
 
 	if( passwd->bv_val[i] != '\0' ) {
-		return NULL;	/* passwd must behave like a string */
+		return LUTIL_PASSWD_ERR;	/* passwd must behave like a string */
 	}
 
 	if( lutil_entropy( salt, sizeof( salt ) ) < 0 ) {
-		return NULL; 
+		return LUTIL_PASSWD_ERR; 
 	}
 
 	for( i=0; i< ( sizeof(salt) - 1 ); i++ ) {
@@ -1367,21 +1144,21 @@ static struct berval *hash_crypt(
 		/* copy the salt we made into entropy before snprintfing
 		   it back into the salt */
 		char entropy[sizeof(salt)];
-		strcpy( entropy, salt );
-		snprintf( salt, sizeof(entropy), salt_format, entropy );
+		strcpy( entropy, (char *) salt );
+		snprintf( (char *) salt, sizeof(entropy), salt_format, entropy );
 	}
 
-	hash.bv_val = crypt( passwd->bv_val, salt );
+	hash->bv_val = crypt( passwd->bv_val, (char *) salt );
 
-	if( hash.bv_val == NULL ) return NULL;
+	if( hash->bv_val == NULL ) return -1;
 
-	hash.bv_len = strlen( hash.bv_val );
+	hash->bv_len = strlen( hash->bv_val );
 
-	if( hash.bv_len == 0 ) {
-		return NULL;
+	if( hash->bv_len == 0 ) {
+		return LUTIL_PASSWD_ERR;
 	}
 
-	return pw_string( scheme, &hash );
+	return pw_string( scheme, hash );
 }
 #endif
 
@@ -1397,12 +1174,14 @@ int lutil_salt_format(const char *format)
 }
 
 #ifdef SLAPD_CLEARTEXT
-static struct berval *hash_clear(
+static int hash_clear(
 	const struct berval *scheme,
 	const struct berval  *passwd,
+	struct berval *hash,
 	const char **text )
 {
-	return ber_bvdup( (struct berval *) passwd );
+	ber_dupbv( hash, (struct berval *)passwd );
+	return LUTIL_PASSWD_OK;
 }
 #endif
 

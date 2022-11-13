@@ -1,15 +1,18 @@
-/* $OpenLDAP: pkg/ldap/libraries/libldap_r/thr_pth.c,v 1.7.2.3 2003/03/03 17:10:05 kurt Exp $ */
-/*
- * Copyright 1998-2003 The OpenLDAP Foundation, Redwood City, California, USA
+/* thr_pth.c - wrappers around GNU Pth */
+/* $OpenLDAP: pkg/ldap/libraries/libldap_r/thr_pth.c,v 1.10.2.4 2005/05/03 23:28:30 hyc Exp $ */
+/* This work is part of OpenLDAP Software <http://www.openldap.org/>.
+ *
+ * Copyright 1998-2005 The OpenLDAP Foundation.
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms are permitted only
- * as authorized by the OpenLDAP Public License.  A copy of this
- * license is available at http://www.OpenLDAP.org/license.html or
- * in file LICENSE in the top-level directory of the distribution.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted only as authorized by the OpenLDAP
+ * Public License.
+ *
+ * A copy of this license is available in file LICENSE in the
+ * top-level directory of the distribution or, alternatively, at
+ * <http://www.OpenLDAP.org/license.html>.
  */
-
-/* thr_pth.c - wrappers around GNU Pth */
 
 #include "portable.h"
 
@@ -35,7 +38,7 @@ ldap_int_thread_initialize( void )
 	}
 	detach_attr = pth_attr_new();
 	joined_attr = pth_attr_new();
-#if LDAP_PVT_THREAD_STACK_SIZE
+#ifdef LDAP_PVT_THREAD_SET_STACK_SIZE
 	pth_attr_set( joined_attr, PTH_ATTR_STACK_SIZE, LDAP_PVT_THREAD_STACK_SIZE );
 	pth_attr_set( detach_attr, PTH_ATTR_STACK_SIZE, LDAP_PVT_THREAD_STACK_SIZE );
 #endif

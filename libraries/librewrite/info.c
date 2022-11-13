@@ -1,7 +1,7 @@
-/* $OpenLDAP: pkg/ldap/libraries/librewrite/info.c,v 1.4.2.3 2004/03/06 16:10:31 ando Exp $ */
+/* $OpenLDAP: pkg/ldap/libraries/librewrite/info.c,v 1.4.4.5 2005/01/20 17:01:04 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2000-2004 The OpenLDAP Foundation.
+ * Copyright 2000-2005 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,6 +67,7 @@ rewrite_info_init(
 
 	info->li_state = REWRITE_DEFAULT;
 	info->li_max_passes = REWRITE_MAX_PASSES;
+	info->li_max_passes_per_rule = REWRITE_MAX_PASSES;
 	info->li_rewrite_mode = mode;
 
 	/*
@@ -259,11 +260,13 @@ rewrite_session(
 	 */
 	case REWRITE_REGEXEC_UNWILLING:
 	case REWRITE_REGEXEC_ERR:
-	default:
 		if ( *result != NULL ) {
 			free( *result );
 			*result = NULL;
 		}
+
+	default:
+		break;
 	}
 
 rc_return:;
