@@ -1,7 +1,7 @@
-/* $OpenLDAP: pkg/ldap/libraries/librewrite/subst.c,v 1.9.2.7 2005/01/20 17:01:05 kurt Exp $ */
+/* $OpenLDAP: pkg/ldap/libraries/librewrite/subst.c,v 1.19.2.4 2007/01/02 21:43:53 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2000-2005 The OpenLDAP Foundation.
+ * Copyright 2000-2007 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -453,8 +453,8 @@ rewrite_subst_destroy(
 	int			n;
 	struct rewrite_subst	*subst;
 
-	assert( psubst );
-	assert( *psubst );
+	assert( psubst != NULL );
+	assert( *psubst != NULL );
 
 	subst = *psubst;
 

@@ -1,1 +1,0 @@
-./../libldap/getentry.c

@@ -1,8 +1,8 @@
 /* trans.c - bdb backend transaction routines */
-/* $OpenLDAP: pkg/ldap/servers/slapd/back-bdb/trans.c,v 1.1.2.5 2005/01/20 17:01:11 kurt Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/back-bdb/trans.c,v 1.6.2.3 2007/01/02 21:44:00 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2000-2005 The OpenLDAP Foundation.
+ * Copyright 2000-2007 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -20,7 +20,6 @@
 #include <ac/string.h>
 
 #include "back-bdb.h"
-#include "external.h"
 #include "lber_pvt.h"
 #include "lutil.h"
 
@@ -49,11 +48,7 @@ bdb_trans_backoff( int num_retries )
 	delay = 16384 * (key * (double) pow_retries / (double) max_key);
 	delay = delay ? delay : 1;
 
-#ifdef NEW_LOGGING
-	LDAP_LOG( OPERATION, ERR, "delay = %d, num_retries = %d\n", delay, num_retries, 0 );
-#else
 	Debug( LDAP_DEBUG_TRACE,  "delay = %d, num_retries = %d\n", delay, num_retries, 0 );
-#endif
 
 	timeout.tv_sec = delay / 1000000;
 	timeout.tv_usec = delay % 1000000;

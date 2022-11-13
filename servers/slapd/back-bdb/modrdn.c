@@ -1,8 +1,8 @@
 /* modrdn.c - bdb backend modrdn routine */
-/* $OpenLDAP: pkg/ldap/servers/slapd/back-bdb/modrdn.c,v 1.110.2.23 2005/09/28 13:40:52 hyc Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/back-bdb/modrdn.c,v 1.160.2.12 2007/01/02 21:44:00 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2000-2005 The OpenLDAP Foundation.
+ * Copyright 2000-2007 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -20,7 +20,6 @@
 #include <ac/string.h>
 
 #include "back-bdb.h"
-#include "external.h"
 
 int
 bdb_modrdn( Operation	*op, SlapReply *rs )
@@ -42,8 +41,6 @@ bdb_modrdn( Operation	*op, SlapReply *rs )
 	struct bdb_op_info opinfo = {0};
 	Entry dummy = {0};
 
-	ID			id;
-
 	Entry		*np = NULL;			/* newSuperior Entry */
 	struct berval	*np_dn = NULL;			/* newSuperior dn */
 	struct berval	*np_ndn = NULL;			/* newSuperior ndn */
@@ -64,12 +61,7 @@ bdb_modrdn( Operation	*op, SlapReply *rs )
 	LDAPControl *ctrls[SLAP_MAX_RESPONSE_CONTROLS];
 	int num_ctrls = 0;
 
-	Operation *ps_list;
-	struct psid_entry *pm_list, *pm_prev;
 	int	rc;
-	EntryInfo	*suffix_ei;
-	Entry		*ctxcsn_e;
-	int			ctxcsn_added = 0;
 
 	int parent_is_glue = 0;
 	int parent_is_leaf = 0;
@@ -100,13 +92,6 @@ retry:	/* transaction retry */
 		}
 		Debug( LDAP_DEBUG_TRACE, "==>" LDAP_XSTRING(bdb_modrdn)
 				": retrying...\n", 0, 0, 0 );
-		pm_list = LDAP_LIST_FIRST(&op->o_pm_list);
-		while ( pm_list != NULL ) {
-			LDAP_LIST_REMOVE ( pm_list, ps_link );
-			pm_prev = pm_list;
-			pm_list = LDAP_LIST_NEXT ( pm_list, ps_link );
-			ch_free( pm_prev );
-		}
 
 		rs->sr_err = TXN_ABORT( ltid );
 		ltid = NULL;
@@ -117,9 +102,12 @@ retry:	/* transaction retry */
 			rs->sr_text = "internal error";
 			goto return_results;
 		}
+		if ( op->o_abandon ) {
+			rs->sr_err = SLAPD_ABANDON;
+			goto return_results;
+		}
 		parent_is_glue = 0;
 		parent_is_leaf = 0;
-		ldap_pvt_thread_yield();
 		bdb_trans_backoff( ++num_retries );
 	}
 
@@ -170,7 +158,6 @@ retry:	/* transaction retry */
 	if (( rs->sr_err == DB_NOTFOUND ) ||
 		( !manageDSAit && e && is_entry_glue( e )))
 	{
-		BerVarray deref = NULL;
 		if( e != NULL ) {
 			rs->sr_matched = ch_strdup( e->e_dn );
 			rs->sr_ref = is_entry_referral( e )
@@ -180,27 +167,14 @@ retry:	/* transaction retry */
 			e = NULL;
 
 		} else {
-			if ( !LDAP_STAILQ_EMPTY( &op->o_bd->be_syncinfo )) {
-				syncinfo_t *si;
-				LDAP_STAILQ_FOREACH( si, &op->o_bd->be_syncinfo, si_next ) {
-					struct berval tmpbv;
-					ber_dupbv( &tmpbv, &si->si_provideruri_bv[0] );
-					ber_bvarray_add( &deref, &tmpbv );
-                }
-			} else {
-				deref = default_referral;
-			}
-			rs->sr_ref = referral_rewrite( deref, NULL, &op->o_req_dn,
-					LDAP_SCOPE_DEFAULT );
+			rs->sr_ref = referral_rewrite( default_referral, NULL,
+					&op->o_req_dn, LDAP_SCOPE_DEFAULT );
 		}
 
 		rs->sr_err = LDAP_REFERRAL;
 		send_ldap_result( op, rs );
 
 		ber_bvarray_free( rs->sr_ref );
-		if ( deref != default_referral ) {
-			ber_bvarray_free( deref );
-		}
 		free( (char *)rs->sr_matched );
 		rs->sr_ref = NULL;
 		rs->sr_matched = NULL;
@@ -328,7 +302,10 @@ retry:	/* transaction retry */
 
 	/* check parent for "children" acl */
 	rs->sr_err = access_allowed( op, p,
-		children, NULL, ACL_WRITE, NULL );
+		children, NULL,
+		op->oq_modrdn.rs_newSup == NULL ?
+			ACL_WRITE : ACL_WDEL,
+		NULL );
 
 	if ( !p_ndn.bv_len )
 		p = NULL;
@@ -437,7 +414,7 @@ retry:	/* transaction retry */
 
 			/* check newSuperior for "children" acl */
 			rs->sr_err = access_allowed( op, np, children,
-				NULL, ACL_WRITE, NULL );
+				NULL, ACL_WADD, NULL );
 
 			if( ! rs->sr_err ) {
 				switch( opinfo.boi_err ) {
@@ -487,7 +464,7 @@ retry:	/* transaction retry */
 
 				/* check parent for "children" acl */
 				rs->sr_err = access_allowed( op, np,
-					children, NULL, ACL_WRITE, NULL );
+					children, NULL, ACL_WADD, NULL );
 
 				np = NULL;
 
@@ -663,21 +640,6 @@ retry:	/* transaction retry */
 
 	dummy.e_attrs = e->e_attrs;
 
-	if ( rs->sr_err == LDAP_SUCCESS && !op->o_noop && !op->o_no_psearch ) {
-		ldap_pvt_thread_rdwr_wlock( &bdb->bi_pslist_rwlock );
-		LDAP_LIST_FOREACH ( ps_list, &bdb->bi_psearch_list, o_ps_link ) {
-			rc = bdb_psearch( op, rs, ps_list, &dummy, LDAP_PSEARCH_BY_PREMODIFY );
-			if ( rc ) {
-				Debug( LDAP_DEBUG_TRACE,
-					LDAP_XSTRING(bdb_modrdn)
-					": persistent search failed (%d,%d)\n",
-					rc, rs->sr_err, 0 );
-			}
-		}
-		ldap_pvt_thread_rdwr_wunlock( &bdb->bi_pslist_rwlock );
-	}
-
-
 	/* modify entry */
 	rs->sr_err = bdb_modify_internal( op, lt2, &mod[0], &dummy,
 		&rs->sr_text, textbuf, textlen );
@@ -746,17 +708,6 @@ retry:	/* transaction retry */
 		goto return_results;
 	}
 
-	if ( LDAP_STAILQ_EMPTY( &op->o_bd->be_syncinfo )) {
-		rc = bdb_csn_commit( op, rs, ltid, ei, &suffix_ei,
-			&ctxcsn_e, &ctxcsn_added, locker );
-		switch ( rc ) {
-		case BDB_CSN_ABORT :
-			goto return_results;
-		case BDB_CSN_RETRY :
-			goto retry;
-		}
-	}
-
 	if( op->o_postread ) {
 		if( postread_ctrl == NULL ) {
 			postread_ctrl = &ctrls[num_ctrls++];
@@ -776,7 +727,8 @@ retry:	/* transaction retry */
 		if(( rs->sr_err=TXN_ABORT( ltid )) != 0 ) {
 			rs->sr_text = "txn_abort (no-op) failed";
 		} else {
-			rs->sr_err = LDAP_SUCCESS;
+			rs->sr_err = LDAP_X_NO_OPERATION;
+			ltid = NULL;
 			goto return_results;
 		}
 
@@ -791,45 +743,6 @@ retry:	/* transaction retry */
 		dummy.e_attrs = NULL;
 		new_dn.bv_val = NULL;
 		new_ndn.bv_val = NULL;
-
-		if ( LDAP_STAILQ_EMPTY( &op->o_bd->be_syncinfo )) {
-			if ( ctxcsn_added ) {
-				bdb_cache_add( bdb, suffix_ei, ctxcsn_e,
-					(struct berval *)&slap_ldapsync_cn_bv, locker );
-			}
-		}
-
-		if ( rs->sr_err == LDAP_SUCCESS ) {
-			/* Loop through in-scope entries for each psearch spec */
-			ldap_pvt_thread_rdwr_wlock( &bdb->bi_pslist_rwlock );
-			LDAP_LIST_FOREACH ( ps_list, &bdb->bi_psearch_list, o_ps_link ) {
-				rc = bdb_psearch( op, rs, ps_list, e, LDAP_PSEARCH_BY_MODIFY );
-				if ( rc ) {
-					Debug( LDAP_DEBUG_TRACE,
-						LDAP_XSTRING(bdb_modrdn)
-						": persistent search failed "
-						"(%d,%d)\n",
-						rc, rs->sr_err, 0 );
-				}
-			}
-			pm_list = LDAP_LIST_FIRST(&op->o_pm_list);
-			while ( pm_list != NULL ) {
-				rc = bdb_psearch(op, rs, pm_list->ps_op,
-							e, LDAP_PSEARCH_BY_SCOPEOUT);
-				if ( rc ) {
-					Debug( LDAP_DEBUG_TRACE,
-						LDAP_XSTRING(bdb_modrdn)
-						": persistent search failed "
-						"(%d,%d)\n",
-						rc, rs->sr_err, 0 );
-				}
-				pm_prev = pm_list;
-				LDAP_LIST_REMOVE ( pm_list, ps_link );
-				pm_list = LDAP_LIST_NEXT ( pm_list, ps_link );
-				ch_free( pm_prev );
-			}
-			ldap_pvt_thread_rdwr_wunlock( &bdb->bi_pslist_rwlock );
-		}
 
 		if(( rs->sr_err=TXN_COMMIT( ltid, 0 )) != 0 ) {
 			rs->sr_text = "txn_commit failed";
@@ -865,7 +778,6 @@ return_results:
 	send_ldap_result( op, rs );
 
 	if( rs->sr_err == LDAP_SUCCESS && bdb->bi_txn_cp ) {
-		ldap_pvt_thread_yield();
 		TXN_CHECKPOINT( bdb->bi_dbenv,
 			bdb->bi_txn_cp_kbyte, bdb->bi_txn_cp_min, 0 );
 	}
@@ -875,6 +787,8 @@ return_results:
 	}
 
 done:
+	slap_graduate_commit_csn( op );
+
 	if( new_dn.bv_val != NULL ) free( new_dn.bv_val );
 	if( new_ndn.bv_val != NULL ) free( new_ndn.bv_val );
 
@@ -882,22 +796,13 @@ done:
 	if ( new_rdn != NULL ) {
 		ldap_rdnfree_x( new_rdn, op->o_tmpmemctx );
 	}
+
 	if ( old_rdn != NULL ) {
 		ldap_rdnfree_x( old_rdn, op->o_tmpmemctx );
 	}
+
 	if( mod != NULL ) {
-		Modifications *tmp;
-		for (; mod; mod=tmp ) {
-			tmp = mod->sml_next;
-			/* slap_modrdn2mods does things one way,
-			 * slap_mods_opattrs does it differently
-			 */
-			if ( mod->sml_op != SLAP_MOD_SOFTADD &&
-				mod->sml_op != LDAP_MOD_DELETE ) break;
-			if ( mod->sml_nvalues ) free( mod->sml_nvalues[0].bv_val );
-			free( mod );
-		}
-		slap_mods_free( mod );
+		slap_modrdn2mods_free( mod );
 	}
 
 	/* LDAP v3 Support */
@@ -917,22 +822,15 @@ done:
 	}
 
 	if( ltid != NULL ) {
-		pm_list = LDAP_LIST_FIRST(&op->o_pm_list);
-		while ( pm_list != NULL ) {
-			LDAP_LIST_REMOVE ( pm_list, ps_link );
-			pm_prev = pm_list;
-			pm_list = LDAP_LIST_NEXT ( pm_list, ps_link );
-			ch_free( pm_prev );
-		}
 		TXN_ABORT( ltid );
-		op->o_private = NULL;
 	}
+	op->o_private = NULL;
 
-	if( preread_ctrl != NULL ) {
+	if( preread_ctrl != NULL && (*preread_ctrl) != NULL ) {
 		slap_sl_free( (*preread_ctrl)->ldctl_value.bv_val, op->o_tmpmemctx );
 		slap_sl_free( *preread_ctrl, op->o_tmpmemctx );
 	}
-	if( postread_ctrl != NULL ) {
+	if( postread_ctrl != NULL && (*postread_ctrl) != NULL ) {
 		slap_sl_free( (*postread_ctrl)->ldctl_value.bv_val, op->o_tmpmemctx );
 		slap_sl_free( *postread_ctrl, op->o_tmpmemctx );
 	}

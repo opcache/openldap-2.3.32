@@ -1,8 +1,8 @@
 /* delete.c - shell backend delete function */
-/* $OpenLDAP: pkg/ldap/servers/slapd/back-shell/delete.c,v 1.20.2.4 2005/01/20 17:01:16 kurt Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/back-shell/delete.c,v 1.23.2.4 2007/01/02 21:44:06 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2005 The OpenLDAP Foundation.
+ * Copyright 1998-2007 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,7 +64,7 @@ shell_back_delete(
 	e.e_private = NULL;
 
 	if ( ! access_allowed( op, &e,
-		entry, NULL, ACL_WRITE, NULL ) )
+		entry, NULL, ACL_WDEL, NULL ) )
 	{
 		send_ldap_error( op, rs, LDAP_INSUFFICIENT_ACCESS, NULL );
 		return -1;

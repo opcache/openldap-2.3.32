@@ -1,7 +1,7 @@
-/* $OpenLDAP: pkg/ldap/libraries/librewrite/ldapmap.c,v 1.4.4.5 2005/01/20 17:01:04 kurt Exp $ */
+/* $OpenLDAP: pkg/ldap/libraries/librewrite/ldapmap.c,v 1.9.2.5 2007/01/02 21:43:52 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2000-2005 The OpenLDAP Foundation.
+ * Copyright 2000-2007 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -155,7 +155,7 @@ map_ldap_parse(
 				data->lm_binddn[ l ] = '\0';
 			}
 		} else if ( strncasecmp( argv[ 0 ], "bindpw=", 7 ) == 0 ) {
-			data->lm_bindpw = strdup( argv[ 2 ] + 7 );
+			data->lm_bindpw = strdup( argv[ 0 ] + 7 );
 			if ( data->lm_bindpw == NULL ) {
 				map_ldap_free( data );
 				return NULL;
@@ -339,8 +339,8 @@ map_ldap_destroy(
 {
 	struct ldap_map_data *data;
 
-	assert( pmap );
-	assert( *pmap );
+	assert( pmap != NULL );
+	assert( *pmap != NULL );
 	
 	data = ( struct ldap_map_data * )(*pmap)->lb_private;
 

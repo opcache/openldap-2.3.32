@@ -1,8 +1,8 @@
 /* Generic socket.h */
-/* $OpenLDAP: pkg/ldap/include/ac/socket.h,v 1.59.2.3 2005/01/20 17:00:59 kurt Exp $ */
+/* $OpenLDAP: pkg/ldap/include/ac/socket.h,v 1.65.2.4 2007/01/02 21:43:47 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2005 The OpenLDAP Foundation.
+ * Copyright 1998-2007 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -19,6 +19,10 @@
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
+
+#ifdef HAVE_POLL_H
+#include <poll.h>
 #endif
 
 #ifdef HAVE_SYS_SOCKET_H
@@ -76,6 +80,7 @@
 #undef	sock_errstr
 #define sock_errno()	errno
 #define sock_errstr(e)	STRERROR(e)
+#define sock_errset(e)	errno = (e)
 
 #ifdef HAVE_WINSOCK
 #	define tcp_read( s, buf, len )	recv( s, buf, len, 0 )
@@ -96,8 +101,10 @@
 
 #undef	sock_errno
 #undef	sock_errstr
+#undef	sock_errset
 #define	sock_errno()	WSAGetLastError()
 #define	sock_errstr(e)	ber_pvt_wsa_err2string(e)
+#define	sock_errset(e)	WSASetLastError(e)
 
 LBER_F( char * ) ber_pvt_wsa_err2string LDAP_P((int));
 
@@ -211,6 +218,18 @@ LDAP_LUTIL_F( int ) getpeereid( int s, uid_t *, gid_t * );
 /* DNS RFC defines max host name as 255. New systems seem to use 1024 */
 #ifndef NI_MAXHOST
 #define	NI_MAXHOST	256
+#endif
+
+#ifdef HAVE_POLL_H
+# ifndef INFTIM
+#  define INFTIM (-1)
+# endif
+#undef POLL_OTHER
+#define POLL_OTHER   (POLLERR|POLLHUP)
+#undef POLL_READ
+#define POLL_READ    (POLLIN|POLLPRI|POLL_OTHER)
+#undef POLL_WRITE              
+#define POLL_WRITE   (POLLOUT|POLL_OTHER)
 #endif
 
 #endif /* _AC_SOCKET_H_ */

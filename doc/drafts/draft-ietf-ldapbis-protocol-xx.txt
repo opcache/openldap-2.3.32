@@ -1,6 +1,8 @@
+ 
+
 Internet-Draft                                  Editor:  J. Sermersheim 
 Intended Category: Standard Track                           Novell, Inc 
-Document: draft-ietf-ldapbis-protocol-30.txt                   Feb 2005 
+Document: draft-ietf-ldapbis-protocol-32.txt                   Oct 2005 
 Obsoletes: RFCs 2251, 2830, 3771                                        
  
     
@@ -9,12 +11,11 @@ Obsoletes: RFCs 2251, 2830, 3771
  
 Status of this Memo 
  
-   This document is an Internet-Draft and is subject to all provisions 
-   of section 3 of RFC 3667. By submitting this Internet-Draft, each 
+   By submitting this Internet-Draft, each 
    author represents that any applicable patent or other IPR claims of 
    which he or she is aware have been or will be disclosed, and any of 
-   which he or she become aware will be disclosed, in accordance with 
-   RFC 3668. 
+   which he or she becomes aware will be disclosed, in accordance with 
+   Section 6 of BCP 79. 
     
    Internet-Drafts are working documents of the Internet Engineering 
    Task Force (IETF), its areas, and its working groups. Note that other 
@@ -26,10 +27,10 @@ Status of this Memo
    material or to cite them other than as "work in progress".  
     
    The list of current Internet-Drafts can be accessed at 
-   <http://www.ietf.org/ietf/1id-abstracts.txt>.  
+   http://www.ietf.org/ietf/1id-abstracts.txt.  
     
    The list of Internet-Draft Shadow Directories can be accessed at 
-   <http://www.ietf.org/shadow.html>.  
+   http://www.ietf.org/shadow.html.  
     
    This Internet-Draft will expire in February 2005.  
     
@@ -38,10 +39,6 @@ Status of this Memo
    ldapbis@openldap.org>. Please send editorial comments directly to the 
    editor <jimse@novell.com>. 
     
-    
-Copyright Notice 
-    
-   Copyright (C) The Internet Society 2004. All Rights Reserved. 
  
 Abstract 
  
@@ -52,14 +49,14 @@ Abstract
    elements are based on those described in the X.500 Directory Access 
    Protocol (DAP). 
     
- 
-Sermersheim       Internet-Draft - Expires Aug 2005               Page 1 
-
-              Lightweight Directory Access Protocol Version 3 
-                                      
     
 Table of Contents 
     
+
+ 
+Sermersheim      Internet-Draft - Expires April 2006              Page 1 
+              Lightweight Directory Access Protocol Version 3 
+                                      
    1. Introduction....................................................3 
    1.1. Relationship to Other LDAP Specifications.....................3 
    2. Conventions.....................................................3 
@@ -92,10 +89,10 @@ Table of Contents
    4.13. IntermediateResponse Message................................36 
    4.14. StartTLS Operation..........................................37 
    5. Protocol Encoding, Connection, and Transfer....................39 
-   5.1. Protocol Encoding............................................40 
+   5.1. Protocol Encoding............................................39 
    5.2. Transmission Control Protocol (TCP)..........................40 
    5.3. Termination of the LDAP session..............................40 
-   6. Security Considerations........................................41 
+   6. Security Considerations........................................40 
    7. Acknowledgements...............................................42 
    8. Normative References...........................................42 
    9. Informative References.........................................44 
@@ -111,9 +108,11 @@ Table of Contents
    C.3 Changes made to RFC 3771:.....................................63 
     
  
+
+
+
   
-Sermersheim       Internet-Draft - Expires Aug 2005               Page 2 
-
+Sermersheim      Internet-Draft - Expires April 2006              Page 2 
               Lightweight Directory Access Protocol Version 3 
                                       
 1. Introduction 
@@ -138,19 +137,18 @@ Sermersheim       Internet-Draft - Expires Aug 2005               Page 2
    [Roadmap] which obsoletes the previously defined LDAP technical 
    specification, RFC 3377, in its entirety. 
     
-   This document obsoletes all of RFC 2251 except the following: 
-   Sections 3.2, 3.4, 4.1.3 (last paragraph), 4.1.4, 4.1.5, 4.1.5.1, 
-   4.1.9 (last paragraph), 5.1, 6.1, and 6.2 (last paragraph) are 
-   obsoleted by [Models]. 
-   Section 3.3 is obsoleted by [Roadmap]. 
-   Sections 4.2.1 (portions), and 4.2.2 are obsoleted by [AuthMeth]. 
+   This document, together with [Roadmap], [AuthMeth], and [Models], 
+   obsoletes RFC 2251 in its entirety. Section 3.3 is obsoleted by 
+   [Roadmap]. Sections 4.2.1 (portions), and 4.2.2 are obsoleted by 
+   [AuthMeth].  Sections 3.2, 3.4, 4.1.3 (last paragraph), 4.1.4, 4.1.5, 
+   4.1.5.1, 4.1.9 (last paragraph), 5.1, 6.1, and 6.2 (last paragraph) 
+   are obsoleted by [Models].  The remainder of RFC 2251 is obsoleted by 
+   this document.  Appendix C.1 summarizes substantive changes in the 
+   remainder. 
     
-   Appendix C.1 summarizes substantive changes to the remaining 
-   sections. 
-    
-   This document obsoletes RFC 2830, Sections 2 and 4 in entirety. The 
-   remainder of RFC 2830 is obsoleted by [AuthMeth]. Appendix C.2 
-   summarizes substantive changes to the remaining sections. 
+   This document obsoletes RFC 2830, Sections 2 and 4. The remainder of 
+   RFC 2830 is obsoleted by [AuthMeth]. Appendix C.2 summarizes 
+   substantive changes to the remaining sections. 
     
    This document also obsoletes RFC 3771 in entirety. 
     
@@ -170,9 +168,9 @@ Sermersheim       Internet-Draft - Expires Aug 2005               Page 2
    [CharModel]. 
     
 
+
   
-Sermersheim       Internet-Draft - Expires Aug 2005               Page 3 
-
+Sermersheim      Internet-Draft - Expires April 2006              Page 3 
               Lightweight Directory Access Protocol Version 3 
                                       
    The term "transport connection" refers to the underlying transport 
@@ -187,9 +185,9 @@ Sermersheim       Internet-Draft - Expires Aug 2005               Page 3
    security services, as well as associations established by these 
    services. 
     
-   The term "LDAP message layer" refers to the LDAP Message (PDU) 
-   services used in providing directory services, as well as 
-   associations established by these services. 
+   The term "LDAP message layer" refers to the LDAP Message Protocol 
+   Data Unit (PDU) services used in providing directory services, as 
+   well as associations established by these services. 
     
    The term "LDAP session" refers to combined services (transport 
    connection, TLS layer, SASL layer, LDAP message layer) and their 
@@ -230,12 +228,11 @@ Sermersheim       Internet-Draft - Expires Aug 2005               Page 3
 
 
   
-Sermersheim       Internet-Draft - Expires Aug 2005               Page 4 
-
+Sermersheim      Internet-Draft - Expires April 2006              Page 4 
               Lightweight Directory Access Protocol Version 3 
                                       
  
-3.1 Operation and LDAP Message Layer Relationship 
+3.1. Operation and LDAP Message Layer Relationship 
     
    Protocol operations are exchanged at the LDAP message layer. When the 
    transport connection is closed, any uncompleted operations at the 
@@ -289,8 +286,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005               Page 4
 
 
   
-Sermersheim       Internet-Draft - Expires Aug 2005               Page 5 
-
+Sermersheim      Internet-Draft - Expires April 2006              Page 5 
               Lightweight Directory Access Protocol Version 3 
                                       
         LDAPMessage ::= SEQUENCE { 
@@ -330,17 +326,17 @@ Sermersheim       Internet-Draft - Expires Aug 2005               Page 5
    common fields required in all protocol exchanges. At this time the 
    only common fields are the messageID and the controls. 
     
-   If the server receives a PDU from the client in which the LDAPMessage 
-   SEQUENCE tag cannot be recognized, the messageID cannot be parsed, 
-   the tag of the protocolOp is not recognized as a request, or the 
-   encoding structures or lengths of data fields are found to be 
+   If the server receives an LDAPMessage from the client in which the 
+   LDAPMessage SEQUENCE tag cannot be recognized, the messageID cannot 
+   be parsed, the tag of the protocolOp is not recognized as a request, 
+   or the encoding structures or lengths of data fields are found to be 
    incorrect, then the server SHOULD return the Notice of Disconnection 
    described in Section 4.4.1, with the resultCode set to protocolError, 
    and MUST immediately terminate the LDAP session as described in 
    Section 5.3.  
     
-   In other cases where the client or server cannot parse a PDU, it 
-   SHOULD abruptly terminate the LDAP session (Section 5.3) where 
+   In other cases where the client or server cannot parse an LDAP PDU, 
+   it SHOULD abruptly terminate the LDAP session (Section 5.3) where 
    further communication (including providing notice) would be 
    pernicious. Otherwise, server implementations MUST return an 
    appropriate response to the request, with the resultCode set to 
@@ -348,8 +344,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005               Page 5
     
     
   
-Sermersheim       Internet-Draft - Expires Aug 2005               Page 6 
-
+Sermersheim      Internet-Draft - Expires April 2006              Page 6 
               Lightweight Directory Access Protocol Version 3 
                                       
 4.1.1.1. Message ID 
@@ -407,8 +402,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005               Page 6
         LDAPDN ::= LDAPString 
                    -- Constrained to <distinguishedName> [LDAPDN] 
   
-Sermersheim       Internet-Draft - Expires Aug 2005               Page 7 
-
+Sermersheim      Internet-Draft - Expires April 2006              Page 7 
               Lightweight Directory Access Protocol Version 3 
                                       
     
@@ -466,8 +460,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005               Page 7
    used to assert that the value in assertionValue matches a value of an 
    attribute. 
   
-Sermersheim       Internet-Draft - Expires Aug 2005               Page 8 
-
+Sermersheim      Internet-Draft - Expires April 2006              Page 8 
               Lightweight Directory Access Protocol Version 3 
                                       
     
@@ -525,8 +518,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005               Page 8
     
 
   
-Sermersheim       Internet-Draft - Expires Aug 2005               Page 9 
-
+Sermersheim      Internet-Draft - Expires April 2006              Page 9 
               Lightweight Directory Access Protocol Version 3 
                                       
         LDAPResult ::= SEQUENCE { 
@@ -584,15 +576,16 @@ Sermersheim       Internet-Draft - Expires Aug 2005               Page 9
     
 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 10 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 10 
               Lightweight Directory Access Protocol Version 3 
                                       
    The resultCode enumeration is extensible as defined in Section 3.6 of 
    [LDAPIANA]. The meanings of the listed result codes are given in 
    Appendix A. If a server detects multiple errors for an operation, 
    only one result code is returned. The server should return the result 
-   code that best indicates the nature of the error encountered. 
+   code that best indicates the nature of the error encountered. Servers 
+   may return substituted result codes to prevent unauthorized 
+   disclosures. 
     
    The diagnosticMessage field of this construct may, at the server's 
    option, be used to return a string containing a textual, human-
@@ -640,13 +633,11 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 10
    operation. 
     
         Referral ::= SEQUENCE SIZE (1..MAX) OF uri URI 
-    
-
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 11 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 11 
               Lightweight Directory Access Protocol Version 3 
                                       
+    
         URI ::= LDAPString     -- limited to characters permitted in 
                                -- URIs 
     
@@ -700,10 +691,8 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 11
    they do not support. 
     
 
-
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 12 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 12 
               Lightweight Directory Access Protocol Version 3 
                                       
    UTF-8 encoded characters appearing in the string representation of a 
@@ -743,26 +732,25 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 12
    without applying the semantics of the control. Specifically, the 
    criticality field is applied as follows: 
     
-   - Regardless of the value of the criticality field, if the server 
-     recognizes the control type and it is appropriate for the 
-     operation, the server is to make use of the control when 
-     performing the operation. 
+   - If the server does not recognize the control type, determines that 
+     it is not appropriate for the operation, or is otherwise unwilling 
+     to perform the operation with the control, and the criticality 
+     field is TRUE, the server MUST NOT perform the operation, and for 
+     operations that have a response message, MUST return with the 
+     resultCode set to unavailableCriticalExtension. 
     
-   - If the server does not recognize the control type or it is not 
-     appropriate for the operation, and the criticality field is TRUE, 
-     the server MUST NOT perform the operation, and for operations that 
-     have a response message, MUST return with the resultCode set to 
-     unavailableCriticalExtension. 
+   - If the server does not recognize the control type, determines that 
+     it is not appropriate for the operation, or is otherwise unwilling 
+     to perform the operation with the control, and the criticality 
+     field is FALSE, the server MUST ignore the control. 
     
-   - If the server does not recognize the control type or it is not 
-     appropriate for the operation, and the criticality field is FALSE, 
-     the server MUST ignore the control. 
-    
+   - Regardless of criticality, if a control is applied to an 
+     operation, it is applied consistently and impartially to the 
+     entire operation.  
 
 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 13 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 13 
               Lightweight Directory Access Protocol Version 3 
                                       
    The controlValue may contain information associated with the 
@@ -784,12 +772,15 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 13
    specification most recently published. When a combination of controls 
    is encountered whose semantics are invalid, not specified (or not 
    known), the message is considered to be not well-formed, thus the 
-   operation fails with protocolError. Additionally, unless order-
-   dependent semantics are given in a specification, the order of a 
-   combination of controls in the SEQUENCE is ignored. Where the order 
-   is to be ignored but cannot be ignored by the server, the message is 
-   considered not well-formed and the operation fails with 
-   protocolError. 
+   operation fails with protocolError. Controls with a criticality of 
+   FALSE may be ignored in order to arrive at a valid combination. 
+   Additionally, unless order-dependent semantics are given in a 
+   specification, the order of a combination of controls in the SEQUENCE 
+   is ignored. Where the order is to be ignored but cannot be ignored by 
+   the server, the message is considered not well-formed and the 
+   operation fails with protocolError. Again, controls with a 
+   criticality of FALSE may be ignored in order to arrive at a valid 
+   combination. 
     
    This document does not specify any controls. Controls may be 
    specified in other documents. Documents detailing control extensions 
@@ -813,17 +804,19 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 13
     
 4.2. Bind Operation 
     
+
+
+
+  
+Sermersheim      Internet-Draft - Expires April 2006             Page 14 
+              Lightweight Directory Access Protocol Version 3 
+                                      
    The function of the Bind operation is to allow authentication 
    information to be exchanged between the client and server. The Bind 
    operation should be thought of as the "authenticate" operation. 
    Operational, authentication, and security-related semantics of this 
    operation are given in [AuthMeth].  
     
-  
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 14 
-
-              Lightweight Directory Access Protocol Version 3 
-                                      
    The Bind request is defined as follows: 
     
         BindRequest ::= [APPLICATION 0] SEQUENCE { 
@@ -854,7 +847,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 14
      client wishes to bind as. This field may take on a null value (a 
      zero length string) for the purposes of anonymous binds 
      ([AuthMeth] Section 5.1) or when using Simple Authentication and 
-     Security Layer [SASL] authentication ([AuthMeth] Section 3.3.2). 
+     Security Layer [SASL] authentication ([AuthMeth] Section 5.2). 
      Where the server attempts to locate the named object, it SHALL NOT 
      perform alias dereferencing. 
     
@@ -867,22 +860,16 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 14
      character set and encoding) transferred to the server using the 
      simple AuthenticationChoice SHALL be transferred as [UTF-8] 
      encoded [Unicode]. Prior to transfer, clients SHOULD prepare text 
-     passwords by applying the [SASLprep] profile of the [Stringprep] 
-     algorithm. Passwords consisting of other data (such as random 
-     octets) MUST NOT be altered. The determination of whether a 
-     password is textual is a local client matter. 
+     passwords as "query" strings by applying the [SASLprep] profile of 
+     the [Stringprep] algorithm. Passwords consisting of other data 
+     (such as random octets) MUST NOT be altered. The determination of 
+     whether a password is textual is a local client matter. 
     
-    
-
-
-
-
-
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 15 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 15 
               Lightweight Directory Access Protocol Version 3 
                                       
+    
 4.2.1. Processing of the Bind Request 
     
    Before processing a BindRequest, all uncompleted operations MUST 
@@ -901,8 +888,8 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 15
    operationsError to that request, it may then send a BindRequest. If 
    this also fails or the client chooses not to bind on the existing 
    LDAP session, it may terminate the LDAP session, re-establish it and 
-   begin again by first sending a PDU with a BindRequest. This will aid 
-   in interoperating with servers implementing other versions of LDAP. 
+   begin again by first sending a BindRequest. This will aid in 
+   interoperating with servers implementing other versions of LDAP. 
     
    Clients may send multiple Bind requests to change the authentication 
    and/or security associations or to complete a multi-stage Bind 
@@ -910,7 +897,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 15
  
    For some SASL authentication mechanisms, it may be necessary for the 
    client to invoke the BindRequest multiple times ([AuthMeth] Section 
-   8.2). Clients MUST NOT invoke operations between two Bind requests 
+   5.2). Clients MUST NOT invoke operations between two Bind requests 
    made as part of a multi-stage Bind. 
     
    A client may abort a SASL bind negotiation by sending a BindRequest 
@@ -936,10 +923,8 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 15
    status of the client's request for authentication. 
     
 
-
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 16 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 16 
               Lightweight Directory Access Protocol Version 3 
                                       
    A successful Bind operation is indicated by a BindResponse with a 
@@ -997,8 +982,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 16
 
 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 17 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 17 
               Lightweight Directory Access Protocol Version 3 
                                       
    The unsolicited notification is structured as an LDAPMessage in which 
@@ -1056,8 +1040,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 17
     
    The Search request is defined as follows: 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 18 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 18 
               Lightweight Directory Access Protocol Version 3 
                                       
     
@@ -1115,8 +1098,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 18
 
 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 19 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 19 
               Lightweight Directory Access Protocol Version 3 
                                       
    Note that an X.500 "list"-like operation can be emulated by the 
@@ -1129,13 +1111,13 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 19
    semantics as the X.500 Search operation. 
  
  
-4.5.1.1 SearchRequest.baseObject 
+4.5.1.1. SearchRequest.baseObject 
     
    The name of the base object entry (or possibly the root) relative to 
    which the Search is to be performed. 
     
     
-4.5.1.2 SearchRequest.scope 
+4.5.1.2. SearchRequest.scope 
  
    Specifies the scope of the Search to be performed. The semantics (as 
    described in [X.511]) of the defined values of this field are: 
@@ -1150,7 +1132,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 19
      baseObject, and all its subordinates. 
     
     
-4.5.1.3 SearchRequest.derefAliases 
+4.5.1.3. SearchRequest.derefAliases 
  
    An indicator as to whether or not alias entries (as defined in 
    [Models]) are to be dereferenced during stages of the Search 
@@ -1174,8 +1156,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 19
 
 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 20 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 20 
               Lightweight Directory Access Protocol Version 3 
                                       
      derefInSearching: While searching subordinates of the base object, 
@@ -1196,7 +1177,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 20
      the base object of the Search. 
  
     
-4.5.1.4 SearchRequest.sizeLimit 
+4.5.1.4. SearchRequest.sizeLimit 
  
    A size limit that restricts the maximum number of entries to be 
    returned as a result of the Search. A value of zero in this field 
@@ -1205,7 +1186,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 20
    entries to return. 
     
     
-4.5.1.5 SearchRequest.timeLimit 
+4.5.1.5. SearchRequest.timeLimit 
  
    A time limit that restricts the maximum time (in seconds) allowed for 
    a Search. A value of zero in this field indicates that no client-
@@ -1213,7 +1194,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 20
    Servers may also enforce a maximum time limit for the Search. 
     
     
-4.5.1.6 SearchRequest.typesOnly 
+4.5.1.6. SearchRequest.typesOnly 
     
    An indicator as to whether Search results are to contain both 
    attribute descriptions and values, or just attribute descriptions. 
@@ -1233,11 +1214,10 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 20
 
 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 21 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 21 
               Lightweight Directory Access Protocol Version 3 
                                       
-4.5.1.7 SearchRequest.filter 
+4.5.1.7. SearchRequest.filter 
  
    A filter that defines the conditions that must be fulfilled in order 
    for the Search to match a given entry. 
@@ -1283,37 +1263,29 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 21
     
    - The assertion value is invalid.  
     
-
-
-
-
-
-
-
-
-  
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 22 
-
-              Lightweight Directory Access Protocol Version 3 
-                                      
    For example, if a server did not recognize the attribute type 
-   shoeSize, a filter of (shoeSize=*) would evaluate to FALSE, and the 
-   filters (shoeSize=12), (shoeSize>=12) and (shoeSize<=12) would each 
-   evaluate to Undefined. 
+   shoeSize, the filters (shoeSize=*), (shoeSize=12), (shoeSize>=12) and 
+   (shoeSize<=12) would each evaluate to Undefined. 
     
    Servers MUST NOT return errors if attribute descriptions or matching 
    rule ids are not recognized, assertion values are invalid, or the 
    assertion syntax is not supported. More details of filter processing 
    are given in Clause 7.8 of [X.511]. 
+  
+Sermersheim      Internet-Draft - Expires April 2006             Page 22 
+              Lightweight Directory Access Protocol Version 3 
+                                      
  
  
-4.5.1.7.1 SearchRequest.filter.equalityMatch 
+4.5.1.7.1. SearchRequest.filter.equalityMatch 
     
-   The matching rule for equalityMatch filter items is defined by the 
-   EQUALITY matching rule for the attribute type. 
+   The matching rule for an equalityMatch filter is defined by the 
+   EQUALITY matching rule for the attribute type or subtype. The filter 
+   is TRUE when the EQUALITY rule returns TRUE as applied to the 
+   attribute or subtype and the asserted value. 
     
     
-4.5.1.7.2 SearchRequest.filter.substrings 
+4.5.1.7.2. SearchRequest.filter.substrings 
     
    There SHALL be at most one 'initial', and at most one 'final' in the 
    'substrings' of a SubstringFilter. If 'initial' is present, it SHALL 
@@ -1321,51 +1293,58 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 22
    be the last element of 'substrings'.  
     
    The matching rule for an AssertionValue in a substrings filter item 
-   is defined by the SUBSTR matching rule for the attribute type. Note 
-   that the AssertionValue in a substrings filter item conforms to the 
-   assertion syntax of the EQUALITY matching rule for the attribute type 
-   rather than the assertion syntax of the SUBSTR matching rule for the 
-   attribute type. Conceptually, the entire SubstringFilter is converted 
-   into an assertion value of the substrings matching rule prior to 
-   applying the rule. 
+   is defined by the SUBSTR matching rule for the attribute type or 
+   subtype. The filter is TRUE when the SUBSTR rule returns TRUE as 
+   applied to the attribute or subtype and the asserted value. 
+    
+   Note that the AssertionValue in a substrings filter item conforms to 
+   the assertion syntax of the EQUALITY matching rule for the attribute 
+   type rather than the assertion syntax of the SUBSTR matching rule for 
+   the attribute type. Conceptually, the entire SubstringFilter is 
+   converted into an assertion value of the substrings matching rule 
+   prior to applying the rule. 
     
     
-4.5.1.7.3 SearchRequest.filter.greaterOrEqual 
+4.5.1.7.3. SearchRequest.filter.greaterOrEqual 
     
-   The matching rule for the greaterOrEqual filter item is defined by 
-   the ORDERING and EQUALITY matching rules for the attribute type. 
+   The matching rule for a greaterOrEqual filter is defined by the 
+   ORDERING matching rule for the attribute type or subtype. The filter 
+   is TRUE when the ORDERING rule returns FALSE as applied to the 
+   attribute or subtype and the asserted value. 
  
  
-4.5.1.7.4 SearchRequest.filter.lessOrEqual 
+4.5.1.7.4. SearchRequest.filter.lessOrEqual 
     
-   The matching rule for the lessOrEqual filter item is defined by the 
-   ORDERING matching rule for the attribute type. 
+   The matching rules for a lessOrEqual filter are defined by the 
+   ORDERING and EQUALITY matching rules for the attribute type or 
+   subtype. The filter is TRUE when either the ORDERING or EQUALITY rule 
+   returns TRUE as applied to the attribute or subtype and the asserted 
+   value. 
     
     
-4.5.1.7.5 SearchRequest.filter.present 
+4.5.1.7.5. SearchRequest.filter.present 
     
-   The present match evaluates to TRUE where there is an attribute or 
-   subtype of the specified attribute description present in an entry, 
-   and FALSE otherwise (including a presence test with an unrecognized 
-   attribute description). 
-    
+   A present filter is TRUE when there is an attribute or subtype of the 
+   specified attribute description present in an entry, FALSE when no 
+   attribute or subtype of the specified attribute description is 
+   present in an entry, and Undefined otherwise. 
     
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 23 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 23 
               Lightweight Directory Access Protocol Version 3 
                                       
-4.5.1.7.6 SearchRequest.filter.approxMatch 
     
-   An approxMatch filter item evaluates to TRUE when there is a value of 
-   the attribute or subtype for which some locally-defined approximate 
-   matching algorithm (e.g. spelling variations, phonetic match, etc.) 
-   returns TRUE. If an item matches for equality, it also satisfies an 
+4.5.1.7.6. SearchRequest.filter.approxMatch 
+    
+   An approxMatch filter is TRUE when there is a value of the attribute 
+   type or subtype for which some locally-defined approximate matching 
+   algorithm (e.g. spelling variations, phonetic match, etc.) returns 
+   TRUE. If a value matches for equality, it also satisfies an 
    approximate match. If approximate matching is not supported for the 
    attribute, this filter item should be treated as an equalityMatch. 
     
     
-4.5.1.7.7 SearchRequest.filter.extensibleMatch 
+4.5.1.7.7. SearchRequest.filter.extensibleMatch 
  
    The fields of the extensibleMatch filter item are evaluated as 
    follows: 
@@ -1378,42 +1357,43 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 23
      support that matchingRule.  
     
    - If the type field is present and the matchingRule is present, the 
-     matchValue is compared against entry attributes of the specified 
-     type. 
+     matchValue is compared against the specified attribute type and 
+     its subtypes. 
  
    - If the dnAttributes field is set to TRUE, the match is 
      additionally applied against all the AttributeValueAssertions in 
      an entry's distinguished name, and evaluates to TRUE if there is 
-     at least one attribute in the distinguished name for which the 
-     filter item evaluates to TRUE. The dnAttributes field is present 
-     to alleviate the need for multiple versions of generic matching 
-     rules (such as word matching), where one applies to entries and 
-     another applies to entries and DN attributes as well. 
+     at least one attribute or subtype in the distinguished name for 
+     which the filter item evaluates to TRUE. The dnAttributes field is 
+     present to alleviate the need for multiple versions of generic 
+     matching rules (such as word matching), where one applies to 
+     entries and another applies to entries and DN attributes as well. 
       
    The matchingRule used for evaluation determines the syntax for the 
    assertion value. Once the matchingRule and attribute(s) have been 
-   determined, the filter item evaluates to TRUE if it matches with at 
-   least one attribute in the entry, FALSE if it does not match any 
-   attribute in the entry, and Undefined if the matchingRule is not 
-   recognized, the matchingRule is unsuitable for use with the specified 
-   type, or the assertionValue is invalid. 
+   determined, the filter item evaluates to TRUE if it matches at least 
+   one attribute type or subtype in the entry, FALSE if it does not 
+   match any attribute type or subtype in the entry, and Undefined if 
+   the matchingRule is not recognized, the matchingRule is unsuitable 
+   for use with the specified type, or the assertionValue is invalid. 
     
     
-4.5.1.7 SearchRequest.attributes 
+4.5.1.7. SearchRequest.attributes 
     
    A selection list of the attributes to be returned from each entry 
-   which matches the search filter. LDAPString values of this field are 
-   constrained to the following Augmented Backus-Naur Form ([ABNF]): 
+   which matches the search filter. Attributes which are subtypes of 
+   listed attributes are implicitly included. LDAPString values of this 
+   field are constrained to the following Augmented Backus-Naur Form 
+   ([ABNF]): 
     
      attributeSelector = attributedescription / selectorspecial 
+  
+Sermersheim      Internet-Draft - Expires April 2006             Page 24 
+              Lightweight Directory Access Protocol Version 3 
+                                      
     
      selectorspecial = noattrs / alluserattrs 
     
-  
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 24 
-
-              Lightweight Directory Access Protocol Version 3 
-                                      
      noattrs = %x31.2E.31 ; "1.1" 
     
      alluserattrs = %x2A ; asterisk ("*") 
@@ -1465,14 +1445,13 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 24
              objectName      LDAPDN, 
              attributes      PartialAttributeList } 
     
+  
+Sermersheim      Internet-Draft - Expires April 2006             Page 25 
+              Lightweight Directory Access Protocol Version 3 
+                                      
         PartialAttributeList ::= SEQUENCE OF  
                              partialAttribute PartialAttribute   
     
-  
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 25 
-
-              Lightweight Directory Access Protocol Version 3 
-                                      
         SearchResultReference ::= [APPLICATION 19] SEQUENCE  
                                   SIZE (1..MAX) OF uri URI 
     
@@ -1480,8 +1459,8 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 25
     
    Each SearchResultEntry represents an entry found during the Search. 
    Each SearchResultReference represents an area not yet explored during 
-   the Search. The SearchResultEntry and SearchResultReference PDUs may 
-   come in any order. Following all the SearchResultReference and 
+   the Search. The SearchResultEntry and SearchResultReference messages 
+   may come in any order. Following all the SearchResultReference and 
    SearchResultEntry responses, the server returns a SearchResultDone 
    response, which contains an indication of success, or detailing any 
    errors that have occurred. 
@@ -1524,12 +1503,8 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 25
    entry named in the baseObject). 
     
 
-
-
-
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 26 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 26 
               Lightweight Directory Access Protocol Version 3 
                                       
    If a server holds a copy or partial copy of the subordinate naming 
@@ -1587,8 +1562,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 26
      SearchResultReference. 
     
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 27 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 27 
               Lightweight Directory Access Protocol Version 3 
                                       
    - The name of an unexplored subtree in a SearchResultReference need 
@@ -1646,8 +1620,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 27
 
 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 28 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 28 
               Lightweight Directory Access Protocol Version 3 
                                       
      SearchResultEntry for CN=Manager,DC=Example,DC=NET 
@@ -1705,8 +1678,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 28
         semantics respectively: 
     
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 29 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 29 
               Lightweight Directory Access Protocol Version 3 
                                       
            add: add values listed to the modification attribute, 
@@ -1764,8 +1736,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 29
    entry MUST be identical. 
     
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 30 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 30 
               Lightweight Directory Access Protocol Version 3 
                                       
     
@@ -1823,8 +1794,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 30
     
         DelRequest ::= [APPLICATION 10] LDAPDN 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 31 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 31 
               Lightweight Directory Access Protocol Version 3 
                                       
     
@@ -1882,8 +1852,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 31
    defined as follows: 
     
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 32 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 32 
               Lightweight Directory Access Protocol Version 3 
                                       
         ModifyDNResponse ::= [APPLICATION 13] LDAPResult 
@@ -1941,8 +1910,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 32
    the requested comparison and return the result in the Compare 
    Response, defined as follows: 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 33 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 33 
               Lightweight Directory Access Protocol Version 3 
                                       
     
@@ -2000,8 +1968,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 33
    when the Abandon was requested, or are not able to be abandoned). 
     
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 34 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 34 
               Lightweight Directory Access Protocol Version 3 
                                       
    Servers MUST discard Abandon requests for message IDs they do not 
@@ -2039,17 +2006,18 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 34
              responseName     [10] LDAPOID OPTIONAL, 
              responseValue    [11] OCTET STRING OPTIONAL } 
     
-   The responseName is typically not required to be present as the 
-   syntax and semantics of the response (including the format of the 
-   responseValue) is implicitly known and associated with the request by 
-   the messageID. 
+   The responseName field, when present, contains an LDAPOID which is 
+   unique for this extended operation or response.  This field is 
+   optional (even when the extension specification specifies an LDAPOID 
+   to be returned in the field).  The field will be absent whenever the 
+   server is unable or unwilling to determine the appropriate LDAPOID to 
+   return, for instance when the requestName cannot be parsed or its 
+   value is not recognized. 
     
-   If the Extended operation associated with the requestName is not 
-   supported by the server, the server MUST NOT provide a responseName 
-   nor a responseValue and MUST return with resultCode set to 
-   protocolError. 
+   Where the requestName is not recognized, the server returns 
+   protocolError (The server may return protocolError in other cases). 
     
-   The requestValue and responseValue fields contain any information 
+   The requestValue and responseValue fields contain information 
    associated with the operation. The format of these fields is defined 
    by the specification of the Extended operation. Implementations MUST 
    be prepared to handle arbitrary contents of these fields, including 
@@ -2057,10 +2025,8 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 34
    according to Section 5.1, also follow the extensibility rules in 
    Section 4. 
     
-
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 35 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 35 
               Lightweight Directory Access Protocol Version 3 
                                       
    Servers list the requestName of Extended Requests they recognize in 
@@ -2073,7 +2039,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 35
    - the OBJECT IDENTIFIER assigned to the requestName, 
     
    - the OBJECT IDENTIFIER (if any) assigned to the responseName (note 
-     that the same OBJECT IDENTIFIER my be used for both the 
+     that the same OBJECT IDENTIFIER may be used for both the 
      requestName and responseName), 
     
    - the format of the contents of the requestValue and responseValue 
@@ -2118,8 +2084,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 35
     
    - the format of the contents of the responseValue (if any), and 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 36 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 36 
               Lightweight Directory Access Protocol Version 3 
                                       
     
@@ -2177,18 +2142,18 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 36
 
 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 37 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 37 
               Lightweight Directory Access Protocol Version 3 
                                       
 4.14.1. StartTLS Request 
  
    A client requests TLS establishment by transmitting a StartTLS 
-   request PDU to the server. The StartTLS request is defined in terms 
-   of an ExtendedRequest. The requestName is "1.3.6.1.4.1.1466.20037", 
-   and the requestValue field is always absent.  
+   request message to the server. The StartTLS request is defined in 
+   terms of an ExtendedRequest. The requestName is 
+   "1.3.6.1.4.1.1466.20037", and the requestValue field is always 
+   absent.  
     
-   The client MUST NOT send any PDUs at this LDAP message layer 
+   The client MUST NOT send any LDAP PDUs at this LDAP message layer 
    following this request until it receives a StartTLS Extended response 
    and, in the case of a successful response, completes TLS 
    negotiations. 
@@ -2204,20 +2169,24 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 37
     
 4.14.2. StartTLS Response 
  
-   When a StartTLS request is made, servers supporting the operation 
-   MUST return a StartTLS response PDU to the requestor. The 
-   responseName, if present, is also "1.3.6.1.4.1.1466.20037". The 
-   responseValue is absent.  
+   When a StartTLS request is received, servers supporting the operation 
+   MUST return a StartTLS response message to the requestor. The 
+   responseName is "1.3.6.1.4.1.1466.20037" when provided (See 4.12). 
+   The responseValue is always absent.  
     
-   If the server is willing and able to negotiate TLS, it returns with 
-   the resultCode set to success. Refer to Section 4 of [AuthMeth] for 
-   details. 
+   If the server is willing and able to negotiate TLS, it returns the 
+   StartTLS response with the resultCode set to success. Upon client 
+   receipt of a successful StartTLS response, protocol peers may 
+   commence with TLS negotiation as discussed in Section 3 of 
+   [AuthMeth]. 
  
    If the server is otherwise unwilling or unable to perform this 
    operation, the server is to return an appropriate result code 
    indicating the nature of the problem.  For example, if the TLS 
    subsystem is not presently available, the server may indicate so by 
-   returning with the resultCode set to unavailable. 
+   returning with the resultCode set to unavailable. In cases where a 
+   non-success result code is returned, the LDAP session is left without 
+   a TLS layer. 
  
  
 4.14.3. Removal of the TLS Layer 
@@ -2226,18 +2195,15 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 37
    LDAP message layer intact by sending and receiving a TLS closure 
    alert. 
     
-   The initiating protocol peer sends the TLS closure alert. If it 
-   wishes to leave the LDAP message layer intact, it then MUST cease to 
-   send further PDUs and MUST ignore any received LDAP PDUs until it 
-   receives a TLS closure alert from the other peer.  
-    
-   Once the initiating protocol peer receives a TLS closure alert from 
-   the other peer it MAY send and receive LDAP PDUs. 
+
+
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 38 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 38 
               Lightweight Directory Access Protocol Version 3 
                                       
+   The initiating protocol peer sends the TLS closure alert and MUST 
+   wait until it receives a TLS closure alert from the other peer before 
+   sending further LDAP PDUs. 
     
    When a protocol peer receives the initial TLS closure alert, it may 
    choose to allow the LDAP message layer to remain intact. In this 
@@ -2246,12 +2212,6 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 38
     
    Protocol peers MAY terminate the LDAP session after sending or 
    receiving a TLS closure alert. 
- 
-   After the TLS layer has been removed, the server MUST NOT send 
-   responses to any request message received before the TLS closure 
-   alert. Thus, clients wishing to receive responses to messages sent 
-   while the TLS layer is intact MUST wait for those message responses 
-   before sending the TLS closure alert.  
     
     
 5. Protocol Encoding, Connection, and Transfer 
@@ -2286,17 +2246,6 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 38
      Transport | transport connection | 
                +----------------------+  
     
-
-
-
-
-
-
-  
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 39 
-
-              Lightweight Directory Access Protocol Version 3 
-                                      
  
 5.1. Protocol Encoding 
  
@@ -2305,6 +2254,11 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 39
    restrictions: 
     
    - Only the definite form of length encoding is used. 
+
+  
+Sermersheim      Internet-Draft - Expires April 2006             Page 39 
+              Lightweight Directory Access Protocol Version 3 
+                                      
     
    - OCTET STRING values are encoded in the primitive form only. 
     
@@ -2337,7 +2291,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 39
 5.3. Termination of the LDAP session 
     
    Termination of the LDAP session is typically initiated by the client 
-   sending an UnbindRequst (Section 4.3), or by the server sending a 
+   sending an UnbindRequest (Section 4.3), or by the server sending a 
    Notice of Disconnection (Section 4.4.1). In these cases each protocol 
    peer gracefully terminates the LDAP session by ceasing exchanges at 
    the LDAP message layer, tearing down any SASL layer, tearing down any 
@@ -2350,12 +2304,6 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 39
     
    In either case, when the LDAP session is terminated, uncompleted 
    operations are handled as specified in Section 3.1. 
-
-  
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 40 
-
-              Lightweight Directory Access Protocol Version 3 
-                                      
  
     
 6. Security Considerations 
@@ -2365,6 +2313,10 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 40
    mechanism. Installing SASL and/or TLS layers can provide integrity 
    and other data security services. 
     
+  
+Sermersheim      Internet-Draft - Expires April 2006             Page 40 
+              Lightweight Directory Access Protocol Version 3 
+                                      
    It is also permitted that the server can return its credentials to 
    the client, if it chooses to do so. 
     
@@ -2385,15 +2337,25 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 40
    in controls attached to Bind requests or responses. Thus information 
    contained in these fields SHOULD NOT be relied on unless otherwise 
    protected (such as by establishing protections at the transport 
-   layer).  
-         
-   Server implementors should plan for the possibility of (protocol or 
-   external) events which alter the information used to establish 
-   security factors (e.g., credentials, authorization identities, access 
-   controls) during the course of the LDAP session, and even during the 
-   performance of a particular operation, and should take steps to avoid 
-   insecure side effects of these changes.  The ways in which these 
-   issues are addressed are application and/or implementation specific. 
+   layer). 
+    
+   Implementors should note that various security factors, including 
+   authentication and authorization information and data security 
+   services may change during the course of the LDAP session, or even 
+   during the performance of a particular operation.  For instance, 
+   credentials could expire, authorization identities or access controls 
+   could change, or the underlying security layer(s) could be replaced 
+   or terminated.  Implementations should be robust in the handling of 
+   changing security factors. 
+   In some cases, it may be appropriate to continue the operation even 
+   in light of security factor changes.  For instance, it may be 
+   appropriate to continue an Abandon operation regardless of the 
+   change, or to continue an operation when the change upgraded (or 
+   maintained) the security factor. In other cases, it may be 
+   appropriate to fail, or alter the processing of the operation. For 
+   instance, if confidential protections were removed, it would be 
+   appropriate to either fail a request to return sensitive data, or 
+   minimally, to exclude the return of sensitive data. 
     
    Implementations which cache attributes and entries obtained via LDAP 
    MUST ensure that access controls are maintained if that information 
@@ -2403,6 +2365,16 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 40
    example, caches could serve result information only to the client 
    whose request caused it to be in the cache. 
     
+
+
+
+
+
+
+  
+Sermersheim      Internet-Draft - Expires April 2006             Page 41 
+              Lightweight Directory Access Protocol Version 3 
+                                      
    Servers may return referrals or Search result references which 
    redirect clients to peer servers. It is possible for a rogue 
    application to inject such referrals into the data stream in an 
@@ -2410,11 +2382,6 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 40
    to be aware of this, and possibly reject referrals when 
    confidentiality measures are not in place. Clients are advised to 
    reject referrals from the StartTLS operation. 
-  
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 41 
-
-              Lightweight Directory Access Protocol Version 3 
-                                      
     
    The matchedDN and diagnosticMessage fields, as well as some 
    resultCode values (e.g., attributeOrValueExists and 
@@ -2457,8 +2424,15 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 41
 8. Normative References 
       
    [ABNF]    Crocker, D. and P. Overell, "Augmented BNF for Syntax 
-             Specifications: ABNF", RFC 2234, November 1997. 
+             Specifications: ABNF", draft-crocker-abnf-rfc2234bis-
+             xx.txt, (a work in progress). 
     
+
+
+  
+Sermersheim      Internet-Draft - Expires April 2006             Page 42 
+              Lightweight Directory Access Protocol Version 3 
+                                      
    [ASN.1]   ITU-T Recommendation X.680 (07/2002) | ISO/IEC 8824-1:2002 
              "Information Technology - Abstract Syntax Notation One 
              (ASN.1): Specification of basic notation" 
@@ -2467,13 +2441,6 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 41
              Level Security Mechanisms", draft-ietf-ldapbis-authmeth-
              xx.txt, (a work in progress). 
     
-
-
-  
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 42 
-
-              Lightweight Directory Access Protocol Version 3 
-                                      
    [BER]     ITU-T Rec. X.690 (07/2002) | ISO/IEC 8825-1:2002, 
              "Information technology - ASN.1 encoding rules: 
              Specification of Basic Encoding Rules (BER), Canonical 
@@ -2520,6 +2487,10 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 42
    [Syntaxes] Legg, S., and K. Dally, "LDAP: Syntaxes and Matching 
              Rules", draft-ietf-ldapbis-syntaxes-xx.txt, (a work in 
              progress). 
+  
+Sermersheim      Internet-Draft - Expires April 2006             Page 43 
+              Lightweight Directory Access Protocol Version 3 
+                                      
     
    [TCP]     Postel, J., "Transmission Control Protocol", STD7 and RFC 
              793, September 1981 
@@ -2527,12 +2498,6 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 42
    [TLS]     Dierks, T. and C. Allen. "The TLS Protocol Version 1.1", 
              draft-ietf-tls-rfc2246-bis-xx.txt, a work in progress. 
     
-
-  
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 43 
-
-              Lightweight Directory Access Protocol Version 3 
-                                      
    [Unicode] The Unicode Consortium, "The Unicode Standard, Version 
              3.2.0" is defined by "The Unicode Standard, Version 3.0" 
              (Reading, MA, Addison-Wesley, 2000. ISBN 0-201-61633-5), 
@@ -2577,24 +2542,43 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 43
  
 10. IANA Considerations 
     
+
+
+
+  
+Sermersheim      Internet-Draft - Expires April 2006             Page 44 
+              Lightweight Directory Access Protocol Version 3 
+                                      
    It is requested that the Internet Assigned Numbers Authority (IANA) 
    update the LDAP result code registry to indicate that this document 
    provides the definitive technical specification for result codes 0-
-   36, 48-54, 64-70, 80-90. 
+   36, 48-54, 64-70, 80-90. It is also noted that one resultCode value 
+   (strongAuthRequired) has been renamed (to strongerAuthRequired). 
     
    It is requested that the IANA update the LDAP Protocol Mechanism 
    registry to indicate that this document and [AuthMeth] provides the 
    definitive technical specification for the StartTLS 
    (1.3.6.1.4.1.1466.20037) Extended operation. 
     
-  
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 44 
-
-              Lightweight Directory Access Protocol Version 3 
-                                      
    It is requested that the IANA update the occurrence of "RFC XXXX" in 
-   Appendix B with this RFC number at publication. 
+   this section and Appendix B with this RFC number at publication. 
  
+   It is requested that IANA assign upon Standards Action an LDAP Object 
+   Identifier [LDAPIANA] to identify the ASN.1 module defined in this 
+   document. 
+    
+        Subject: Request for LDAP Object Identifier Registration 
+        Person & email address to contact for further information: 
+             Jim Sermersheim <jimse@novell.com> 
+        Specification: RFC XXXX 
+        Author/Change Controller: IESG 
+        Comments:    
+             Identifies the LDAP ASN.1 module 
+    
+   [[Note to RFC Editor: please replace the occurrence of <IANA-
+   ASSIGNED-DIRECTORY-NUMBER> in Appendix B with the IANA assigned 
+   OID.]] 
+    
  
 11. Editor's Address 
     
@@ -2619,39 +2603,11 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 44
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 45 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 45 
               Lightweight Directory Access Protocol Version 3 
                                       
-Appendix A - LDAP Result Codes 
+Appendix A. LDAP Result Codes 
  
    This normative appendix details additional considerations regarding 
    LDAP result codes and provides a brief, general description of each 
@@ -2661,11 +2617,13 @@ Appendix A - LDAP Result Codes
    [LDAPIANA]. Client implementations SHALL treat any result code which 
    they do not recognize as an unknown error condition. 
     
-   Servers may substitute some result codes due to access controls which 
-   prevent their disclosure. 
+   The descriptions provided here do not fully account for result code 
+   substitutions used to prevent unauthorized disclosures (such as 
+   substitution of noSuchObject for insufficientAccessRights, or 
+   invalidCredentials for insufficientAccessRights). 
     
     
-A.1 Non-Error Result Codes 
+A.1. Non-Error Result Codes 
     
    These result codes (called "non-error" result codes) do not indicate 
    an error condition: 
@@ -2683,7 +2641,7 @@ A.1 Non-Error Result Codes
    needs to take additional action to complete the operation. 
     
     
-A.2 Result Codes 
+A.2. Result Codes 
     
    Existing LDAP result codes are described as follows: 
  
@@ -2703,11 +2661,8 @@ A.2 Result Codes
         protocolError (2) 
            Indicates the server received data which is not well-formed. 
             
-
-
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 46 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 46 
               Lightweight Directory Access Protocol Version 3 
                                       
            For Bind operation only, this code is also used to indicate 
@@ -2765,8 +2720,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 46
            Indicates a critical control is unrecognized (see Section 
            4.1.11). 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 47 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 47 
               Lightweight Directory Access Protocol Version 3 
                                       
          
@@ -2824,8 +2778,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 47
            type. 
 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 48 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 48 
               Lightweight Directory Access Protocol Version 3 
                                       
          
@@ -2883,8 +2836,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 48
            or renamed) as the target entry already exists. 
 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 49 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 49 
               Lightweight Directory Access Protocol Version 3 
                                       
          
@@ -2942,16 +2894,16 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 49
 
 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 50 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 50 
               Lightweight Directory Access Protocol Version 3 
                                       
-Appendix B - Complete ASN.1 Definition 
+Appendix B. Complete ASN.1 Definition 
     
         This appendix is normative. 
     
-        Lightweight-Directory-Access-Protocol-V3  
-        -- Copyright (C) The Internet Society (2004). This version of 
+        Lightweight-Directory-Access-Protocol-V3 {1 3 6 1 1 <IANA-
+   ASSIGNED-DIRECTORY-NUMBER>} 
+        -- Copyright (C) The Internet Society (2005). This version of 
         -- this ASN.1 module is part of RFC XXXX; see the RFC itself 
         -- for full legal notices. 
         DEFINITIONS 
@@ -2999,10 +2951,8 @@ Appendix B - Complete ASN.1 Definition
         LDAPDN ::= LDAPString -- Constrained to <distinguishedName> 
                               -- [LDAPDN] 
     
-
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 51 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 51 
               Lightweight Directory Access Protocol Version 3 
                                       
         RelativeLDAPDN ::= LDAPString -- Constrained to <name-component> 
@@ -3060,8 +3010,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 51
 
 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 52 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 52 
               Lightweight Directory Access Protocol Version 3 
                                       
         LDAPResult ::= SEQUENCE { 
@@ -3119,8 +3068,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 52
     
         Referral ::= SEQUENCE SIZE (1..MAX) OF uri URI 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 53 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 53 
               Lightweight Directory Access Protocol Version 3 
                                       
     
@@ -3178,8 +3126,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 53
                        -- <attributeSelector> in Section 4.5.1.7 
     
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 54 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 54 
               Lightweight Directory Access Protocol Version 3 
                                       
         Filter ::= CHOICE { 
@@ -3237,8 +3184,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 54
              entry           LDAPDN, 
              attributes      AttributeList } 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 55 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 55 
               Lightweight Directory Access Protocol Version 3 
                                       
     
@@ -3296,11 +3242,10 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 55
 
 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 56 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 56 
               Lightweight Directory Access Protocol Version 3 
                                       
-Appendix C - Changes 
+Appendix C. Changes 
  
    This appendix is non-normative. 
     
@@ -3308,7 +3253,7 @@ Appendix C - Changes
    2830, and RFC 3771. 
     
     
-C.1 Changes made to RFC 2251: 
+C.1. Changes made to RFC 2251: 
     
    This section summarizes the substantive changes made to Sections 1, 
    2, 3.1, and 4 through the remainder of RFC 2251. Readers should 
@@ -3316,7 +3261,7 @@ C.1 Changes made to RFC 2251:
    sections. 
     
     
-C.1.1 Section 1 (Status of this Memo) 
+C.1.1. Section 1 (Status of this Memo) 
     
    - Removed IESG note. Post publication of RFC 2251, mandatory LDAP 
      authentication mechanisms have been standardized which are 
@@ -3324,14 +3269,14 @@ C.1.1 Section 1 (Status of this Memo)
      mechanisms. 
     
     
-C.1.2 Section 3.1 (Protocol Model) and others 
+C.1.2. Section 3.1 (Protocol Model) and others 
  
    - Removed notes giving history between LDAP v1, v2 and v3. Instead, 
      added sufficient language so that this document can stand on its 
      own. 
     
     
-C.1.3 Section 4 (Elements of Protocol) 
+C.1.3. Section 4 (Elements of Protocol) 
  
    - Clarified where the extensibility features of ASN.1 apply to the 
      protocol. This change affected various ASN.1 types by the 
@@ -3341,7 +3286,7 @@ C.1.3 Section 4 (Elements of Protocol)
      statement provided no interoperability advantages. 
  
  
-C.1.4 Section 4.1.1 (Message Envelope) 
+C.1.4. Section 4.1.1 (Message Envelope) 
  
    - There was a mandatory requirement for the server to return a 
      Notice of Disconnection and drop the transport connection when a 
@@ -3350,13 +3295,12 @@ C.1.4 Section 4.1.1 (Message Envelope)
      terminate the LDAP Session. 
  
  
-C.1.5 Section 4.1.1.1 (Message ID) 
+C.1.5. Section 4.1.1.1 (Message ID) 
  
    - Required that the messageID of requests MUST be non-zero as the 
      zero is reserved for Notice of Disconnection. 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 57 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 57 
               Lightweight Directory Access Protocol Version 3 
                                       
    - Specified when it is and isn't appropriate to return an already 
@@ -3364,12 +3308,12 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 57
      behavior in its wording of this. 
  
  
-C.1.6 Section 4.1.2 (String Types) 
+C.1.6. Section 4.1.2 (String Types) 
  
    - Stated that LDAPOID is constrained to <numericoid> from [Models]. 
  
  
-C.1.7 Section 4.1.5.1 (Binary Option) and others 
+C.1.7. Section 4.1.5.1 (Binary Option) and others 
  
    - Removed the Binary Option from the specification. There are 
      numerous interoperability problems associated with this method of 
@@ -3377,13 +3321,13 @@ C.1.7 Section 4.1.5.1 (Binary Option) and others
      replacement is ongoing. 
  
  
-C.1.8 Section 4.1.8 (Attribute) 
+C.1.8. Section 4.1.8 (Attribute) 
  
    - Combined the definitions of PartialAttribute and Attribute here, 
      and defined Attribute in terms of PartialAttribute. 
  
  
-C.1.9 Section 4.1.10 (Result Message) 
+C.1.9. Section 4.1.10 (Result Message) 
  
    - Renamed "errorMessage" to "diagnosticMessage" as it is allowed to 
      be sent for non-error results. 
@@ -3395,7 +3339,7 @@ C.1.9 Section 4.1.10 (Result Message)
      stronger authentication is needed to perform a given operation. 
  
  
-C.1.10 Section 4.1.11 (Referral) 
+C.1.10. Section 4.1.11 (Referral) 
  
    - Defined referrals in terms of URIs rather than URLs. 
    - Removed the requirement that all referral URIs MUST be equally 
@@ -3409,18 +3353,21 @@ C.1.10 Section 4.1.11 (Referral)
      interoperability. 
  
  
-C.1.11 Section 4.1.12 (Controls) 
+C.1.11. Section 4.1.12 (Controls) 
  
    - Specified how control values defined in terms of ASN.1 are to be 
      encoded. 
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 58 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 58 
               Lightweight Directory Access Protocol Version 3 
                                       
    - Noted that the criticality field is only applied to request 
      messages (except UnbindRequest), and must be ignored when present 
      on response messages and UnbindRequest. 
+   - Specified that non-critical controls may be ignored at the 
+     server's discretion. There was confusion in the original wording 
+     which led some to believe that recognized controls may not be 
+     ignored as long as they were associated with a proper request. 
    - Added language regarding combinations of controls and the ordering 
      of controls on a message. 
    - Specified that when the semantics of the combination of controls 
@@ -3431,7 +3378,7 @@ Sermersheim       Internet-Draft - Expires Aug 2005              Page 58
      controls). 
  
  
-C.1.12 Section 4.2 (Bind Operation) 
+C.1.12. Section 4.2 (Bind Operation) 
  
    - Mandated that servers return protocolError when the version is not 
      supported. 
@@ -3446,7 +3393,7 @@ C.1.12 Section 4.2 (Bind Operation)
      different clients. 
  
  
-C.1.13 Section 4.2.1 (Sequencing of the Bind Request) 
+C.1.13. Section 4.2.1 (Sequencing of the Bind Request) 
  
    - This section was largely reorganized for readability and language 
      was added to clarify the authentication state of failed and 
@@ -3466,34 +3413,34 @@ C.1.13 Section 4.2.1 (Sequencing of the Bind Request)
      Bind in relationship to other operations. 
     
     
-C.1.14 Section 4.2.3 (Bind Response) 
+
+
+  
+Sermersheim      Internet-Draft - Expires April 2006             Page 59 
+              Lightweight Directory Access Protocol Version 3 
+                                      
+C.1.14. Section 4.2.3 (Bind Response) 
  
    - Moved most error-related text to Appendix A, and added text 
      regarding certain errors used in conjunction with the Bind 
      operation. 
-
-  
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 59 
-
-              Lightweight Directory Access Protocol Version 3 
-                                      
    - Prohibited the server from specifying serverSaslCreds when not 
      appropriate. 
     
     
-C.1.15 Section 4.3 (Unbind Operation) 
+C.1.15. Section 4.3 (Unbind Operation) 
  
    - Specified that both peers are to cease transmission and terminate 
      the LDAP session for the Unbind operation. 
     
     
-C.1.16 Section 4.4 (Unsolicited Notification) 
+C.1.16. Section 4.4 (Unsolicited Notification) 
  
    - Added instructions for future specifications of Unsolicited 
      Notifications. 
     
     
-C.1.17 Section 4.5.1 (Search Request) 
+C.1.17. Section 4.5.1 (Search Request) 
  
    - SearchRequest attributes is now defined as an AttributeSelection 
      type rather than AttributeDescriptionList, and an ABNF is 
@@ -3503,6 +3450,10 @@ C.1.17 Section 4.5.1 (Search Request)
      instructed to ignore subsequent names when they are duplicated. 
      This was relaxed in order to allow different short names and also 
      OIDs to be requested for an attribute. 
+   - The present search filter now evaluates to Undefined when the 
+     specified attribute is not known to the server. It used to 
+     evaluate to FALSE, which caused behavior inconsistent with what 
+     most would expect, especially when the not operator was used. 
    - The Filter choice SubstringFilter substrings type is now defined 
      with a lower bound of 1. 
    - The SubstringFilter substrings 'initial, 'any', and 'final' types 
@@ -3516,32 +3467,29 @@ C.1.17 Section 4.5.1 (Search Request)
      lessOrEqual, and approxMatch. 
     
     
-C.1.18 Section 4.5.2 (Search Result) 
+C.1.18. Section 4.5.2 (Search Result) 
  
    - Recommended that servers not use attribute short names when it 
      knows they are ambiguous or may cause interoperability problems. 
    - Removed all mention of ExtendedResponse due to lack of 
      implementation. 
+  
+Sermersheim      Internet-Draft - Expires April 2006             Page 60 
+              Lightweight Directory Access Protocol Version 3 
+                                      
     
     
-C.1.19 Section 4.5.3 (Continuation References in the Search Result) 
+C.1.19. Section 4.5.3 (Continuation References in the Search Result) 
  
    - Made changes similar to those made to Section 4.1.11. 
     
     
-
-
-  
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 60 
-
-              Lightweight Directory Access Protocol Version 3 
-                                      
-C.1.20 Section 4.5.3.1 (Example) 
+C.1.20. Section 4.5.3.1 (Example) 
  
    - Fixed examples to adhere to changes made to Section 4.5.3. 
     
     
-C.1.21 Section 4.6 (Modify Operation) 
+C.1.21. Section 4.6 (Modify Operation) 
     
    - Replaced AttributeTypeAndValues with Attribute as they are 
      equivalent. 
@@ -3550,7 +3498,7 @@ C.1.21 Section 4.6 (Modify Operation)
      that any temporary schema violation was allowed.  
     
     
-C.1.22 Section 4.7 (Add Operation) 
+C.1.22. Section 4.7 (Add Operation) 
  
    - Aligned Add operation with X.511 in that the attributes of the RDN 
      are used in conjunction with the listed attributes to create the 
@@ -3564,7 +3512,7 @@ C.1.22 Section 4.7 (Add Operation)
      covered in the data model document. 
     
     
-C.1.23 Section 4.9 (Modify DN Operation) 
+C.1.23. Section 4.9 (Modify DN Operation) 
  
    - Required servers to not dereference aliases for Modify DN. This 
      was added for consistency with other operations and to help ensure 
@@ -3574,7 +3522,7 @@ C.1.23 Section 4.9 (Modify DN Operation)
      present on the entry. 
  
  
-C.1.24 Section 4.10 (Compare Operation) 
+C.1.24. Section 4.10 (Compare Operation) 
  
    - Specified that compareFalse means that the Compare took place and 
      the result is false. There was confusion which lead people to 
@@ -3583,20 +3531,19 @@ C.1.24 Section 4.10 (Compare Operation)
      added for consistency with other operations and to help ensure 
      data consistency. 
     
+  
+Sermersheim      Internet-Draft - Expires April 2006             Page 61 
+              Lightweight Directory Access Protocol Version 3 
+                                      
     
-C.1.25 Section 4.11 (Abandon Operation) 
+C.1.25. Section 4.11 (Abandon Operation) 
  
    - Explained that since Abandon returns no response, clients should 
      not use it if they need to know the outcome. 
    - Specified that Abandon and Unbind cannot be abandoned.  
     
-  
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 61 
-
-              Lightweight Directory Access Protocol Version 3 
-                                      
  
-C.1.26 Section 4.12 (Extended Operation) 
+C.1.26. Section 4.12 (Extended Operation) 
  
    - Specified how values of Extended operations defined in terms of 
      ASN.1 are to be encoded. 
@@ -3606,21 +3553,21 @@ C.1.26 Section 4.12 (Extended Operation)
      operations. 
  
  
-C.1.27 Section 5.2 (Transfer Protocols) 
+C.1.27. Section 5.2 (Transfer Protocols) 
  
    - Moved referral-specific instructions into referral-related 
      sections. 
  
  
-C.1.28 Section 7 (Security Considerations) 
+C.1.28. Section 7 (Security Considerations) 
  
    - Reworded notes regarding SASL not protecting certain aspects of 
-     the LDAP Bind PDUs. 
+     the LDAP Bind messages. 
    - Noted that Servers are encouraged to prevent directory 
      modifications by clients that have authenticated anonymously 
      [AuthMeth].  
-   - Added a note regarding the scenario where an identity is changed 
-     (deleted, privileges or credentials modified, etc.). 
+   - Added a note regarding the possibility of changes to security 
+     factors (authentication, authorization, data confidentiality). 
    - Warned against following referrals that may have been injected in 
      the data stream. 
    - Noted that servers should protect information equally, whether in 
@@ -3629,43 +3576,44 @@ C.1.28 Section 7 (Security Considerations)
    - Added a note regarding malformed and long encodings. 
  
  
-C.1.29 Appendix A (Complete ASN.1 Definition) 
+C.1.29. Appendix A (Complete ASN.1 Definition) 
  
    - Added "EXTENSIBILITY IMPLIED" to ASN.1 definition. 
    - Removed AttributeType. It is not used. 
  
  
-C.2 Changes made to RFC 2830: 
+C.2. Changes made to RFC 2830: 
     
    This section summarizes the substantive changes made to Sections of 
    RFC 2830. Readers should consult [AuthMeth] for summaries of changes 
    to other sections. 
     
     
-C.2.1 Section 2.3 (Response other than "success") 
+  
+Sermersheim      Internet-Draft - Expires April 2006             Page 62 
+              Lightweight Directory Access Protocol Version 3 
+                                      
+C.2.1. Section 2.3 (Response other than "success") 
  
    - Removed wording indicating that referrals can be returned from 
      StartTLS. 
    - Removed requirement that only a narrow set of result codes can be 
      returned. Some result codes are required in certain scenarios, but 
      any other may be returned if appropriate. 
-  
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 62 
-
-              Lightweight Directory Access Protocol Version 3 
-                                      
+   - Removed requirement that the ExtendedResponse.responseName MUST be 
+     present. There are circumstances where this is impossible, and 
+     requiring this is at odds with language in Section 4.12. 
     
     
-C.2.1 Section 4 (Closing a TLS Connection) 
+C.2.1. Section 4 (Closing a TLS Connection) 
     
-   - Reworded most of this section and added the requirement that after 
-     the TLS connection has been closed, the server MUST NOT send 
-     responses to any request message received before the TLS closure. 
+   - Reworded most of this section to align with definitions of the 
+     LDAP protocol layers. 
    - Removed instructions on abrupt closure as this is covered in other 
      areas of the document (specifically, Section 5.3) 
     
  
-C.3 Changes made to RFC 3771: 
+C.3. Changes made to RFC 3771: 
     
    - Rewrote to fit into this document. In general, semantics were 
      preserved. Supporting and background language seen as redundant 
@@ -3699,18 +3647,8 @@ C.3 Changes made to RFC 3771:
 
 
 
-
-
-
-
-
-
-
-
-
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 63 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 63 
               Lightweight Directory Access Protocol Version 3 
                                       
  
@@ -3732,7 +3670,7 @@ Intellectual Property Statement
    attempt made to obtain a general license or permission for the use of 
    such proprietary rights by implementers or users of this 
    specification can be obtained from the IETF on-line IPR repository at 
-   <http://www.ietf.org/ipr>.  
+   http://www.ietf.org/ipr.  
  
    The IETF invites any interested party to bring to its attention any 
    copyrights, patents or patent applications, or other proprietary 
@@ -3752,9 +3690,11 @@ Disclaimer of Validity
  
 Copyright Statement 
  
-   Copyright (C) The Internet Society (2004). This document is subject 
-   to the rights, licenses and restrictions contained in BCP 78, and 
-   except as set forth therein, the authors retain all their rights.  
+   Copyright (C) The Internet Society (2005).  
+    
+   This document is subject to the rights, licenses and restrictions 
+   contained in BCP 78, and except as set forth therein, the authors 
+   retain all their rights.  
  
 Acknowledgement 
  
@@ -3765,8 +3705,5 @@ Acknowledgement
 
 
 
-
-
   
-Sermersheim       Internet-Draft - Expires Aug 2005              Page 64 
-
+Sermersheim      Internet-Draft - Expires April 2006             Page 64 

@@ -1,7 +1,7 @@
-/* $OpenLDAP: pkg/ldap/libraries/liblunicode/ucdata/ucdata.c,v 1.23.2.5 2005/01/20 17:01:03 kurt Exp $ */
+/* $OpenLDAP: pkg/ldap/libraries/liblunicode/ucdata/ucdata.c,v 1.30.2.4 2007/01/02 21:43:51 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2005 The OpenLDAP Foundation.
+ * Copyright 1998-2007 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,14 @@
 #include "lber_pvt.h"
 #include "ucdata.h"
 
+#ifndef HARDCODE_DATA
+#define	HARDCODE_DATA	1
+#endif
+
+#if HARDCODE_DATA
+#include "uctable.h"
+#endif
+
 /**************************************************************************
  *
  * Miscellaneous types, data, and support functions.
@@ -80,6 +88,7 @@ static ac_uint4 masks32[32] = {
 #define endian_long(cc) ((((cc) & 0xff) << 24)|((((cc) >> 8) & 0xff) << 16)|\
                         ((((cc) >> 16) & 0xff) << 8)|((cc) >> 24))
 
+#if !HARDCODE_DATA
 static FILE *
 _ucopenfile(char *paths, char *filename, char *mode)
 {
@@ -110,12 +119,15 @@ _ucopenfile(char *paths, char *filename, char *mode)
 
     return 0;
 }
+#endif
 
 /**************************************************************************
  *
  * Support for the character properties.
  *
  **************************************************************************/
+
+#if !HARDCODE_DATA
 
 static ac_uint4 _ucprop_size;
 static ac_uint2 *_ucprop_offsets;
@@ -228,6 +240,7 @@ _ucprop_unload(void)
     free((char *) _ucprop_offsets);
     _ucprop_size = 0;
 }
+#endif
 
 static int
 _ucprop_lookup(ac_uint4 code, ac_uint4 n)
@@ -298,6 +311,11 @@ ucisprop(ac_uint4 code, ac_uint4 mask1, ac_uint4 mask2)
  *
  **************************************************************************/
 
+#if !HARDCODE_DATA
+
+/* These record the number of slots in the map.
+ * There are 3 words per slot.
+ */
 static ac_uint4 _uccase_size;
 static ac_uint2 _uccase_len[2];
 static ac_uint4 *_uccase_map;
@@ -341,23 +359,23 @@ _uccase_load(char *paths, int reload)
      * Set the node count and lengths of the upper and lower case mapping
      * tables.
      */
-    _uccase_size = hdr.cnt * 3;
-    _uccase_len[0] = hdr.size.len[0] * 3;
-    _uccase_len[1] = hdr.size.len[1] * 3;
+    _uccase_size = hdr.cnt;
+    _uccase_len[0] = hdr.size.len[0];
+    _uccase_len[1] = hdr.size.len[1];
 
     _uccase_map = (ac_uint4 *)
-        malloc(_uccase_size * sizeof(ac_uint4));
+        malloc(_uccase_size * 3 * sizeof(ac_uint4));
 
     /*
      * Load the case mapping table.
      */
-    fread((char *) _uccase_map, sizeof(ac_uint4), _uccase_size, in);
+    fread((char *) _uccase_map, sizeof(ac_uint4), _uccase_size * 3, in);
 
     /*
      * Do an endian swap if necessary.
      */
     if (hdr.bom == 0xfffe) {
-        for (i = 0; i < _uccase_size; i++)
+        for (i = 0; i < _uccase_size * 3; i++)
           _uccase_map[i] = endian_long(_uccase_map[i]);
     }
     fclose(in);
@@ -373,11 +391,13 @@ _uccase_unload(void)
     free((char *) _uccase_map);
     _uccase_size = 0;
 }
+#endif
 
 static ac_uint4
 _uccase_lookup(ac_uint4 code, long l, long r, int field)
 {
     long m;
+	ac_uint4 *tmp;
 
     /*
      * Do the binary search.
@@ -388,13 +408,13 @@ _uccase_lookup(ac_uint4 code, long l, long r, int field)
          * the beginning of a case mapping triple.
          */
         m = (l + r) >> 1;
-        m -= (m % 3);
-        if (code > _uccase_map[m])
-          l = m + 3;
-        else if (code < _uccase_map[m])
-          r = m - 3;
-        else if (code == _uccase_map[m])
-          return _uccase_map[m + field];
+		tmp = &_uccase_map[m*3];
+        if (code > *tmp)
+          l = m + 1;
+        else if (code < *tmp)
+          r = m - 1;
+        else if (code == *tmp)
+          return tmp[field];
     }
 
     return code;
@@ -415,14 +435,14 @@ uctoupper(ac_uint4 code)
          */
         field = 2;
         l = _uccase_len[0];
-        r = (l + _uccase_len[1]) - 3;
+        r = (l + _uccase_len[1]) - 1;
     } else {
         /*
          * The character is title case.
          */
         field = 1;
         l = _uccase_len[0] + _uccase_len[1];
-        r = _uccase_size - 3;
+        r = _uccase_size - 1;
     }
     return _uccase_lookup(code, l, r, field);
 }
@@ -442,14 +462,14 @@ uctolower(ac_uint4 code)
          */
         field = 1;
         l = 0;
-        r = _uccase_len[0] - 3;
+        r = _uccase_len[0] - 1;
     } else {
         /*
          * The character is title case.
          */
         field = 2;
         l = _uccase_len[0] + _uccase_len[1];
-        r = _uccase_size - 3;
+        r = _uccase_size - 1;
     }
     return _uccase_lookup(code, l, r, field);
 }
@@ -473,13 +493,13 @@ uctotitle(ac_uint4 code)
          * The character is upper case.
          */
         l = 0;
-        r = _uccase_len[0] - 3;
+        r = _uccase_len[0] - 1;
     } else {
         /*
          * The character is lower case.
          */
         l = _uccase_len[0];
-        r = (l + _uccase_len[1]) - 3;
+        r = (l + _uccase_len[1]) - 1;
     }
     return _uccase_lookup(code, l, r, field);
 }
@@ -489,6 +509,8 @@ uctotitle(ac_uint4 code)
  * Support for compositions.
  *
  **************************************************************************/
+
+#if !HARDCODE_DATA
 
 static ac_uint4  _uccomp_size;
 static ac_uint4 *_uccomp_data;
@@ -566,6 +588,7 @@ _uccomp_unload(void)
     free((char *) _uccomp_data);
     _uccomp_size = 0;
 }
+#endif
 
 int
 uccomp(ac_uint4 node1, ac_uint4 node2, ac_uint4 *comp)
@@ -679,6 +702,8 @@ uccanoncomp(ac_uint4 *str, int len)
  * Support for decompositions.
  *
  **************************************************************************/
+
+#if !HARDCODE_DATA
 
 static ac_uint4  _ucdcmp_size;
 static ac_uint4 *_ucdcmp_nodes;
@@ -825,6 +850,7 @@ _uckdcmp_unload(void)
     free((char *) _uckdcmp_nodes);
     _uckdcmp_size = 0;
 }
+#endif
 
 int
 ucdecomp(ac_uint4 code, ac_uint4 *num, ac_uint4 **decomp)
@@ -851,7 +877,7 @@ ucdecomp(ac_uint4 code, ac_uint4 *num, ac_uint4 **decomp)
           r = m - 2;
         else if (code == _ucdcmp_nodes[m]) {
             *num = _ucdcmp_nodes[m + 3] - _ucdcmp_nodes[m + 1];
-            *decomp = &_ucdcmp_decomp[_ucdcmp_nodes[m + 1]];
+            *decomp = (ac_uint4*)&_ucdcmp_decomp[_ucdcmp_nodes[m + 1]];
             return 1;
         }
     }
@@ -883,7 +909,7 @@ uckdecomp(ac_uint4 code, ac_uint4 *num, ac_uint4 **decomp)
           r = m - 2;
         else if (code == _uckdcmp_nodes[m]) {
             *num = _uckdcmp_nodes[m + 3] - _uckdcmp_nodes[m + 1];
-            *decomp = &_uckdcmp_decomp[_uckdcmp_nodes[m + 1]];
+            *decomp = (ac_uint4*)&_uckdcmp_decomp[_uckdcmp_nodes[m + 1]];
             return 1;
         }
     }
@@ -995,6 +1021,7 @@ uccompatdecomp(const ac_uint4 *in, int inlen,
  *
  **************************************************************************/
 
+#if !HARDCODE_DATA
 static ac_uint4  _uccmcl_size;
 static ac_uint4 *_uccmcl_nodes;
 
@@ -1060,6 +1087,7 @@ _uccmcl_unload(void)
     free((char *) _uccmcl_nodes);
     _uccmcl_size = 0;
 }
+#endif
 
 ac_uint4
 uccombining_class(ac_uint4 code)
@@ -1088,6 +1116,7 @@ uccombining_class(ac_uint4 code)
  *
  **************************************************************************/
 
+#if !HARDCODE_DATA
 static ac_uint4 *_ucnum_nodes;
 static ac_uint4 _ucnum_size;
 static short *_ucnum_vals;
@@ -1165,6 +1194,7 @@ _ucnumb_unload(void)
     free((char *) _ucnum_nodes);
     _ucnum_size = 0;
 }
+#endif
 
 int
 ucnumber_lookup(ac_uint4 code, struct ucnumber *num)
@@ -1186,7 +1216,7 @@ ucnumber_lookup(ac_uint4 code, struct ucnumber *num)
         else if (code < _ucnum_nodes[m])
           r = m - 2;
         else {
-            vp = _ucnum_vals + _ucnum_nodes[m + 1];
+            vp = (short *)_ucnum_vals + _ucnum_nodes[m + 1];
             num->numerator = (int) *vp++;
             num->denominator = (int) *vp;
             return 1;
@@ -1215,7 +1245,7 @@ ucdigit_lookup(ac_uint4 code, int *digit)
         else if (code < _ucnum_nodes[m])
           r = m - 2;
         else {
-            vp = _ucnum_vals + _ucnum_nodes[m + 1];
+            vp = (short *)_ucnum_vals + _ucnum_nodes[m + 1];
             if (*vp == *(vp + 1)) {
               *digit = *vp;
               return 1;
@@ -1266,6 +1296,11 @@ ucgetdigit(ac_uint4 code)
  *
  **************************************************************************/
 
+#if HARDCODE_DATA
+int ucdata_load(char *paths, int masks) { return 0; }
+void ucdata_unload(int masks) { }
+int ucdata_reload(char *paths, int masks) { return 0; }
+#else
 /*
  * Return 0 if okay, negative on error
  */
@@ -1336,6 +1371,7 @@ ucdata_reload(char *paths, int masks)
 
     return -error;
 }
+#endif
 
 #ifdef TEST
 
@@ -1346,7 +1382,7 @@ main(void)
     ac_uint4 i, lo, *dec;
     struct ucnumber num;
 
-    ucdata_setup(".");
+/*    ucdata_setup("."); */
 
     if (ucisweak(0x30))
       printf("WEAK\n");
@@ -1400,7 +1436,7 @@ main(void)
       printf("0x10000 NOT DEFINED\n");
 
     if (ucnumber_lookup(0x30, &num)) {
-        if (num.numerator != num.denominator)
+        if (num.denominator != 1)
           printf("UCNUMBER: 0x30 = %d/%d\n", num.numerator, num.denominator);
         else
           printf("UCNUMBER: 0x30 = %d\n", num.numerator);
@@ -1408,7 +1444,7 @@ main(void)
       printf("UCNUMBER: 0x30 NOT A NUMBER\n");
 
     if (ucnumber_lookup(0xbc, &num)) {
-        if (num.numerator != num.denominator)
+        if (num.denominator != 1)
           printf("UCNUMBER: 0xbc = %d/%d\n", num.numerator, num.denominator);
         else
           printf("UCNUMBER: 0xbc = %d\n", num.numerator);
@@ -1417,7 +1453,7 @@ main(void)
 
 
     if (ucnumber_lookup(0xff19, &num)) {
-        if (num.numerator != num.denominator)
+        if (num.denominator != 1)
           printf("UCNUMBER: 0xff19 = %d/%d\n", num.numerator, num.denominator);
         else
           printf("UCNUMBER: 0xff19 = %d\n", num.numerator);
@@ -1425,7 +1461,7 @@ main(void)
       printf("UCNUMBER: 0xff19 NOT A NUMBER\n");
 
     if (ucnumber_lookup(0x4e00, &num)) {
-        if (num.numerator != num.denominator)
+        if (num.denominator != 1)
           printf("UCNUMBER: 0x4e00 = %d/%d\n", num.numerator, num.denominator);
         else
           printf("UCNUMBER: 0x4e00 = %d\n", num.numerator);
@@ -1441,24 +1477,24 @@ main(void)
     printf("UCGETDIGIT: 0x969 = %d\n", dig);
 
     num = ucgetnumber(0x30);
-    if (num.numerator != num.denominator)
+    if (num.denominator != 1)
       printf("UCGETNUMBER: 0x30 = %d/%d\n", num.numerator, num.denominator);
     else
       printf("UCGETNUMBER: 0x30 = %d\n", num.numerator);
 
     num = ucgetnumber(0xbc);
-    if (num.numerator != num.denominator)
+    if (num.denominator != 1)
       printf("UCGETNUMBER: 0xbc = %d/%d\n", num.numerator, num.denominator);
     else
       printf("UCGETNUMBER: 0xbc = %d\n", num.numerator);
 
     num = ucgetnumber(0xff19);
-    if (num.numerator != num.denominator)
+    if (num.denominator != 1)
       printf("UCGETNUMBER: 0xff19 = %d/%d\n", num.numerator, num.denominator);
     else
       printf("UCGETNUMBER: 0xff19 = %d\n", num.numerator);
 
-    ucdata_cleanup();
+/*    ucdata_cleanup(); */
     exit(0);
 }
 

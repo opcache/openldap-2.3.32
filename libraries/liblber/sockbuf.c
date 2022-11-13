@@ -1,8 +1,8 @@
 /* sockbuf.c - i/o routines with support for adding i/o layers. */
-/* $OpenLDAP: pkg/ldap/libraries/liblber/sockbuf.c,v 1.54.2.6 2005/09/28 13:03:43 hyc Exp $ */
+/* $OpenLDAP: pkg/ldap/libraries/liblber/sockbuf.c,v 1.60.2.7 2007/01/02 21:43:48 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2005 The OpenLDAP Foundation.
+ * Copyright 1998-2007 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@
 #define LBER_MIN_BUFF_SIZE		4096
 #endif
 #ifndef LBER_MAX_BUFF_SIZE
-#define LBER_MAX_BUFF_SIZE		65536
+#define LBER_MAX_BUFF_SIZE		(65536*256)
 #endif
 #ifndef LBER_DEFAULT_READAHEAD
 #define LBER_DEFAULT_READAHEAD	16384
@@ -56,8 +56,6 @@ Sockbuf *
 ber_sockbuf_alloc( void )
 {
 	Sockbuf			*sb;
-
-	ber_int_options.lbo_valid = LBER_INITIALIZED;
 
 	sb = LBER_CALLOC( 1, sizeof( Sockbuf ) );
 
@@ -104,13 +102,13 @@ ber_sockbuf_ctrl( Sockbuf *sb, int opt, void *arg )
 
 		case LBER_SB_OPT_GET_FD:
 			if ( arg != NULL ) {
-				*((int *)arg) = sb->sb_fd;
+				*((ber_socket_t *)arg) = sb->sb_fd;
 			}
 			ret = ( sb->sb_fd == AC_SOCKET_INVALID ? -1 : 1);
 			break;
 
 		case LBER_SB_OPT_SET_FD:
-			sb->sb_fd = *((int *)arg);
+			sb->sb_fd = *((ber_socket_t *)arg);
 			ret = 1;
 			break;
 
@@ -221,7 +219,7 @@ ber_sockbuf_remove_io( Sockbuf *sb, Sockbuf_IO *sbio, int layer )
 			}
 			*q = p->sbiod_next;
 			LBER_FREE( p );
-		break;
+			break;
 		}
 		q = &p->sbiod_next;
 	}
@@ -469,22 +467,7 @@ sb_stream_read( Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len )
 /*
  * 32-bit Windows Socket API (under Windows NT or Windows 95)
  */
-	{
-		int rc;
-
-		rc = recv( sbiod->sbiod_sb->sb_fd, buf, len, 0 );
-
-#ifdef HAVE_WINSOCK
-		if ( rc < 0 ) {
-			int err;
-
-			err = WSAGetLastError();
-			errno = err;
-		}
-#endif
-
-		return rc;
-	}
+	return recv( sbiod->sbiod_sb->sb_fd, buf, len, 0 );
 
 #elif defined( HAVE_NCSA )
 /*
@@ -522,18 +505,7 @@ sb_stream_write( Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len )
 /*
  * 32-bit Windows Socket API (under Windows NT or Windows 95)
  */
-	{
-		int rc = send( sbiod->sbiod_sb->sb_fd, buf, len, 0 );
-
-#ifdef HAVE_WINSOCK
-		if ( rc < 0 ) {
-			int err;
-			err = WSAGetLastError();
-			errno = err;
-		}
-#endif
-		return rc;
-	}
+	return send( sbiod->sbiod_sb->sb_fd, buf, len, 0 );
 
 #elif defined(HAVE_NCSA)
 	return netwrite( sbiod->sbiod_sb->sb_fd, buf, len );
@@ -818,14 +790,15 @@ static ber_slen_t
 sb_debug_read( Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len )
 {
 	ber_slen_t		ret;
+	char ebuf[128];
 
 	ret = LBER_SBIOD_READ_NEXT( sbiod, buf, len );
 	if (sbiod->sbiod_sb->sb_debug & LDAP_DEBUG_PACKETS) {
-		int err = errno;
+		int err = sock_errno();
 		if ( ret < 0 ) {
 			ber_log_printf( LDAP_DEBUG_PACKETS, sbiod->sbiod_sb->sb_debug,
 				"%sread: want=%ld error=%s\n", (char *)sbiod->sbiod_pvt,
-				(long)len, STRERROR( errno ) );
+				(long)len, AC_STRERROR_R( err, ebuf, sizeof ebuf ) );
 		} else {
 			ber_log_printf( LDAP_DEBUG_PACKETS, sbiod->sbiod_sb->sb_debug,
 				"%sread: want=%ld, got=%ld\n", (char *)sbiod->sbiod_pvt,
@@ -833,7 +806,7 @@ sb_debug_read( Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len )
 			ber_log_bprint( LDAP_DEBUG_PACKETS, sbiod->sbiod_sb->sb_debug,
 				(const char *)buf, ret );
 		}
-		errno = err;
+		sock_errset(err);
 	}
 	return ret;
 }
@@ -842,15 +815,16 @@ static ber_slen_t
 sb_debug_write( Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len )
 {
 	ber_slen_t		ret;
+	char ebuf[128];
 
 	ret = LBER_SBIOD_WRITE_NEXT( sbiod, buf, len );
 	if (sbiod->sbiod_sb->sb_debug & LDAP_DEBUG_PACKETS) {
-		int err = errno;
+		int err = sock_errno();
 		if ( ret < 0 ) {
 			ber_log_printf( LDAP_DEBUG_PACKETS, sbiod->sbiod_sb->sb_debug,
 				"%swrite: want=%ld error=%s\n",
 				(char *)sbiod->sbiod_pvt, (long)len,
-				STRERROR( errno ) );
+				AC_STRERROR_R( err, ebuf, sizeof ebuf ) );
 		} else {
 			ber_log_printf( LDAP_DEBUG_PACKETS, sbiod->sbiod_sb->sb_debug,
 				"%swrite: want=%ld, written=%ld\n",
@@ -858,7 +832,7 @@ sb_debug_write( Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len )
 			ber_log_bprint( LDAP_DEBUG_PACKETS, sbiod->sbiod_sb->sb_debug,
 				(const char *)buf, ret );
 		}
-		errno = err;
+		sock_errset(err);
 	}
 
 	return ret;

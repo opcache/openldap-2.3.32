@@ -1,1 +1,0 @@
-./../libldap/compare.c

@@ -1,7 +1,7 @@
-/* $OpenLDAP: pkg/ldap/libraries/libldap/cyrus.c,v 1.88.2.22 2005/10/04 19:34:31 ando Exp $ */
+/* $OpenLDAP: pkg/ldap/libraries/libldap/cyrus.c,v 1.112.2.16 2007/01/02 21:43:48 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2005 The OpenLDAP Foundation.
+ * Copyright 1998-2007 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,9 +25,21 @@
 #include <ac/ctype.h>
 #include <ac/unistd.h>
 
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+
 #include "ldap-int.h"
 
 #ifdef HAVE_CYRUS_SASL
+
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+
+#ifndef INT_MAX
+#define	INT_MAX	2147483647	/* 32 bit signed max */
+#endif
 
 #ifdef LDAP_R_COMPILE
 ldap_pvt_thread_mutex_t ldap_int_sasl_mutex;
@@ -80,17 +92,10 @@ int ldap_int_sasl_init( void )
 		sprintf( version, "%u.%d.%d", (unsigned)rc >> 24, (rc >> 16) & 0xff,
 			rc & 0xffff );
 
-#ifdef NEW_LOGGING
-		LDAP_LOG( TRANSPORT, INFO,
-		"ldap_int_sasl_init: SASL library version mismatch:"
-		" expected " SASL_VERSION_STRING ","
-		" got %s\n", version, 0, 0 );
-#else
 		Debug( LDAP_DEBUG_ANY,
 		"ldap_int_sasl_init: SASL library version mismatch:"
 		" expected " SASL_VERSION_STRING ","
 		" got %s\n", version, 0, 0 );
-#endif
 		return -1;
 	}
 	}
@@ -156,7 +161,7 @@ sb_sasl_setup( Sockbuf_IO_Desc *sbiod, void *arg )
 	ber_pvt_sb_buf_init( &p->buf_out );
 	if ( ber_pvt_sb_grow_buffer( &p->sec_buf_in, SASL_MIN_BUFF_SIZE ) < 0 ) {
 		LBER_FREE( p );
-		errno = ENOMEM;
+		sock_errset(ENOMEM);
 		return -1;
 	}
 	sasl_getprop( p->sasl_context, SASL_MAXOUTBUF,
@@ -202,7 +207,7 @@ sb_sasl_pkt_length( const unsigned char *buf, int debuglevel )
 		| buf[1] << 16
 		| buf[2] << 8
 		| buf[3];
-   
+
 	if ( size > SASL_MAX_BUFF_SIZE ) {
 		/* somebody is trying to mess me up. */
 		ber_log_printf( LDAP_DEBUG_ANY, debuglevel,
@@ -283,7 +288,7 @@ sb_sasl_read( Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len)
 	if ( ( p->sec_buf_in.buf_size < (ber_len_t) ret ) && 
 		ber_pvt_sb_grow_buffer( &p->sec_buf_in, ret ) < 0 )
 	{
-		errno = ENOMEM;
+		sock_errset(ENOMEM);
 		return -1;
 	}
 	p->sec_buf_in.buf_end = ret;
@@ -322,7 +327,7 @@ sb_sasl_read( Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len)
 		ber_log_printf( LDAP_DEBUG_ANY, sbiod->sbiod_sb->sb_debug,
 			"sb_sasl_read: failed to decode packet: %s\n",
 			sasl_errstring( ret, NULL, NULL ) );
-		errno = EIO;
+		sock_errset(EIO);
 		return -1;
 	}
 	
@@ -351,7 +356,7 @@ sb_sasl_write( Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len)
 
 		/* Still have something left?? */
 		if ( p->buf_out.buf_ptr != p->buf_out.buf_end ) {
-			errno = EAGAIN;
+			sock_errset(EAGAIN);
 			return -1;
 		}
 	}
@@ -378,7 +383,7 @@ sb_sasl_write( Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len)
 		ber_log_printf( LDAP_DEBUG_ANY, sbiod->sbiod_sb->sb_debug,
 			"sb_sasl_write: failed to encode packet: %s\n",
 			sasl_errstring( ret, NULL, NULL ) );
-		errno = EIO;
+		sock_errset(EIO);
 		return -1;
 	}
 	p->buf_out.buf_end = p->buf_out.buf_size;
@@ -416,12 +421,8 @@ Sockbuf_IO ldap_pvt_sockbuf_io_sasl = {
 
 int ldap_pvt_sasl_install( Sockbuf *sb, void *ctx_arg )
 {
-#ifdef NEW_LOGGING
-	LDAP_LOG ( TRANSPORT, ENTRY, "ldap_pvt_sasl_install\n", 0, 0, 0 );
-#else
 	Debug( LDAP_DEBUG_TRACE, "ldap_pvt_sasl_install\n",
 		0, 0, 0 );
-#endif
 
 	/* don't install the stuff unless security has been negotiated */
 
@@ -454,6 +455,15 @@ sasl_err2ldap( int saslerr )
 {
 	int rc;
 
+	/* map SASL errors to LDAP API errors returned by:
+	 *	sasl_client_new()
+	 *		SASL_OK, SASL_NOMECH, SASL_NOMEM
+	 *	sasl_client_start()
+	 *		SASL_OK, SASL_NOMECH, SASL_NOMEM, SASL_INTERACT
+	 *	sasl_client_step()
+	 *		SASL_OK, SASL_INTERACT, SASL_BADPROT, SASL_BADSERV
+	 */
+
 	switch (saslerr) {
 		case SASL_CONTINUE:
 			rc = LDAP_MORE_RESULTS_TO_RETURN;
@@ -464,20 +474,28 @@ sasl_err2ldap( int saslerr )
 		case SASL_OK:
 			rc = LDAP_SUCCESS;
 			break;
-		case SASL_FAIL:
-			rc = LDAP_LOCAL_ERROR;
-			break;
 		case SASL_NOMEM:
 			rc = LDAP_NO_MEMORY;
 			break;
 		case SASL_NOMECH:
 			rc = LDAP_AUTH_UNKNOWN;
 			break;
+		case SASL_BADPROT:
+			rc = LDAP_DECODING_ERROR;
+			break;
+		case SASL_BADSERV:
+			rc = LDAP_AUTH_UNKNOWN;
+			break;
+
+		/* other codes */
 		case SASL_BADAUTH:
 			rc = LDAP_AUTH_UNKNOWN;
 			break;
 		case SASL_NOAUTHZ:
 			rc = LDAP_PARAM_ERROR;
+			break;
+		case SASL_FAIL:
+			rc = LDAP_LOCAL_ERROR;
 			break;
 		case SASL_TOOWEAK:
 		case SASL_ENCRYPT:
@@ -526,13 +544,8 @@ ldap_int_sasl_open(
 		return ld->ld_errno;
 	}
 
-#ifdef NEW_LOGGING
-	LDAP_LOG ( TRANSPORT, DETAIL1, "ldap_int_sasl_open: host=%s\n", 
-		host, 0, 0 );
-#else
 	Debug( LDAP_DEBUG_TRACE, "ldap_int_sasl_open: host=%s\n",
 		host, 0, 0 );
-#endif
 
 	lc->lconn_sasl_authctx = ctx;
 
@@ -580,13 +593,8 @@ ldap_int_sasl_bind(
 	ber_socket_t		sd;
 	void	*ssl;
 
-#ifdef NEW_LOGGING
-	LDAP_LOG ( TRANSPORT, ARGS, "ldap_int_sasl_bind: %s\n", 
-		mechs ? mechs : "<null>", 0, 0 );
-#else
 	Debug( LDAP_DEBUG_TRACE, "ldap_int_sasl_bind: %s\n",
 		mechs ? mechs : "<null>", 0, 0 );
-#endif
 
 	/* do a quick !LDAPv3 check... ldap_sasl_bind will do the rest. */
 	if (ld->ld_version < LDAP_VERSION3) {
@@ -594,22 +602,31 @@ ldap_int_sasl_bind(
 		return ld->ld_errno;
 	}
 
+	rc = 0;
+#ifdef LDAP_R_COMPILE
+	ldap_pvt_thread_mutex_lock( &ld->ld_req_mutex );
+#endif
 	ber_sockbuf_ctrl( ld->ld_sb, LBER_SB_OPT_GET_FD, &sd );
 
 	if ( sd == AC_SOCKET_INVALID ) {
  		/* not connected yet */
- 		int rc;
 
 		rc = ldap_open_defconn( ld );
-		if( rc < 0 ) return ld->ld_errno;
 
-		ber_sockbuf_ctrl( ld->ld_defconn->lconn_sb, LBER_SB_OPT_GET_FD, &sd );
+		if ( rc == 0 ) {
+			ber_sockbuf_ctrl( ld->ld_defconn->lconn_sb,
+				LBER_SB_OPT_GET_FD, &sd );
 
-		if( sd == AC_SOCKET_INVALID ) {
-			ld->ld_errno = LDAP_LOCAL_ERROR;
-			return ld->ld_errno;
+			if( sd == AC_SOCKET_INVALID ) {
+				ld->ld_errno = LDAP_LOCAL_ERROR;
+				rc = ld->ld_errno;
+			}
 		}
 	}   
+#ifdef LDAP_R_COMPILE
+	ldap_pvt_thread_mutex_unlock( &ld->ld_req_mutex );
+#endif
+	if( rc != 0 ) return ld->ld_errno;
 
 	oldctx = ld->ld_defconn->lconn_sasl_authctx;
 
@@ -621,9 +638,11 @@ ldap_int_sasl_bind(
 		ld->ld_defconn->lconn_sasl_authctx = NULL;
 	}
 
-	{ char *saslhost = ldap_host_connected_to( ld->ld_defconn->lconn_sb, "localhost" );
-	rc = ldap_int_sasl_open( ld, ld->ld_defconn, saslhost );
-	LDAP_FREE( saslhost );
+	{
+		char *saslhost = ldap_host_connected_to( ld->ld_defconn->lconn_sb,
+			"localhost" );
+		rc = ldap_int_sasl_open( ld, ld->ld_defconn, saslhost );
+		LDAP_FREE( saslhost );
 	}
 
 	if ( rc != LDAP_SUCCESS ) return rc;
@@ -646,13 +665,16 @@ ldap_int_sasl_bind(
 
 #if !defined(_WIN32)
 	/* Check for local */
-	if ( ldap_pvt_url_scheme2proto( ld->ld_defconn->lconn_server->lud_scheme ) == LDAP_PROTO_IPC ) {
-		char authid[sizeof("uidNumber=4294967295+gidNumber=4294967295,"
+	if ( ldap_pvt_url_scheme2proto(
+		ld->ld_defconn->lconn_server->lud_scheme ) == LDAP_PROTO_IPC )
+	{
+		char authid[sizeof("gidNumber=4294967295+uidNumber=4294967295,"
 			"cn=peercred,cn=external,cn=auth")];
-		sprintf( authid, "uidNumber=%d+gidNumber=%d,"
+		sprintf( authid, "gidNumber=%d+uidNumber=%d,"
 			"cn=peercred,cn=external,cn=auth",
-			(int) geteuid(), (int) getegid() );
-		(void) ldap_int_sasl_external( ld, ld->ld_defconn, authid, LDAP_PVT_SASL_LOCAL_SSF );
+			(int) getegid(), (int) geteuid() );
+		(void) ldap_int_sasl_external( ld, ld->ld_defconn, authid,
+			LDAP_PVT_SASL_LOCAL_SSF );
 	}
 #endif
 
@@ -698,7 +720,7 @@ ldap_int_sasl_bind(
 	if ( (saslrc != SASL_OK) && (saslrc != SASL_CONTINUE) ) {
 		rc = ld->ld_errno = sasl_err2ldap( saslrc );
 #if SASL_VERSION_MAJOR >= 2
-		if (ld->ld_error ) {
+		if ( ld->ld_error ) {
 			LDAP_FREE( ld->ld_error );
 		}
 		ld->ld_error = LDAP_STRDUP( sasl_errdetail( ctx ) );
@@ -712,7 +734,8 @@ ldap_int_sasl_bind(
 
 		scred = NULL;
 
-		rc = ldap_sasl_bind_s( ld, dn, mech, &ccred, sctrls, cctrls, &scred );
+		rc = ldap_sasl_bind_s( ld, dn, mech, &ccred, sctrls, cctrls,
+			&scred );
 
 		if ( ccred.bv_val != NULL ) {
 #if SASL_VERSION_MAJOR < 2
@@ -723,19 +746,12 @@ ldap_int_sasl_bind(
 
 		if ( rc != LDAP_SUCCESS && rc != LDAP_SASL_BIND_IN_PROGRESS ) {
 			if( scred ) {
-				if ( scred->bv_len ) {
-					/* and server provided us with data? */
-#ifdef NEW_LOGGING
-					LDAP_LOG ( TRANSPORT, DETAIL1, 
-						"ldap_int_sasl_bind: rc=%d sasl=%d len=%ld\n", 
-						rc, saslrc, scred->bv_len );
-#else
-					Debug( LDAP_DEBUG_TRACE,
-						"ldap_int_sasl_bind: rc=%d sasl=%d len=%ld\n",
-						rc, saslrc, scred->bv_len );
-#endif
-				}
+				/* and server provided us with data? */
+				Debug( LDAP_DEBUG_TRACE,
+					"ldap_int_sasl_bind: rc=%d sasl=%d len=%ld\n",
+					rc, saslrc, scred ? scred->bv_len : -1 );
 				ber_bvfree( scred );
+				scred = NULL;
 			}
 			rc = ld->ld_errno;
 			goto done;
@@ -744,26 +760,44 @@ ldap_int_sasl_bind(
 		if( rc == LDAP_SUCCESS && saslrc == SASL_OK ) {
 			/* we're done, no need to step */
 			if( scred ) {
-				if ( scred->bv_len ) {
-				/* but server provided us with data! */
-#ifdef NEW_LOGGING
-					LDAP_LOG ( TRANSPORT, DETAIL1, 
-						"ldap_int_sasl_bind: rc=%d sasl=%d len=%ld\n", 
+				/* but we got additional data? */
+#define KLUDGE_FOR_MSAD
+#ifdef 	KLUDGE_FOR_MSAD
+				/*
+				 * MSAD provides empty additional data in violation of LDAP
+				 * technical specifications.  As no existing SASL mechanism
+				 * allows empty data with an outcome message, just ignore it
+				 * for now.  Hopefully MS will fix their bug before someone
+				 * defines a mechanism with possibly empty additional data.
+				 */
+				if( scred->bv_len == 0 ) {
+					Debug( LDAP_DEBUG_ANY,
+						"ldap_int_sasl_bind: ignoring "
+							" bogus empty data provided with SASL outcome message.\n",
 						rc, saslrc, scred->bv_len );
-#else
+					ber_bvfree( scred );
+				} else
+#endif
+				{
 					Debug( LDAP_DEBUG_TRACE,
 						"ldap_int_sasl_bind: rc=%d sasl=%d len=%ld\n",
 						rc, saslrc, scred->bv_len );
-#endif
+					rc = ld->ld_errno = LDAP_LOCAL_ERROR;
+					ber_bvfree( scred );
+					goto done;
 				}
-				ber_bvfree( scred );
-				rc = ld->ld_errno = LDAP_LOCAL_ERROR;
-				goto done;
 			}
 			break;
 		}
 
 		do {
+			if( ! scred ) {
+				/* no data! */
+				Debug( LDAP_DEBUG_TRACE,
+					"ldap_int_sasl_bind: no data in step!\n",
+					0, 0, 0 );
+			}
+
 			saslrc = sasl_client_step( ctx,
 				(scred == NULL) ? NULL : scred->bv_val,
 				(scred == NULL) ? 0 : scred->bv_len,
@@ -771,13 +805,8 @@ ldap_int_sasl_bind(
 				(SASL_CONST char **)&ccred.bv_val,
 				&credlen );
 
-#ifdef NEW_LOGGING
-				LDAP_LOG ( TRANSPORT, DETAIL1, 
-					"ldap_int_sasl_bind: sasl_client_step: %d\n", saslrc,0,0 );
-#else
 			Debug( LDAP_DEBUG_TRACE, "sasl_client_step: %d\n",
 				saslrc, 0, 0 );
-#endif
 
 			if( saslrc == SASL_INTERACT ) {
 				int res;
@@ -793,7 +822,7 @@ ldap_int_sasl_bind(
 		if ( (saslrc != SASL_OK) && (saslrc != SASL_CONTINUE) ) {
 			ld->ld_errno = sasl_err2ldap( saslrc );
 #if SASL_VERSION_MAJOR >= 2
-			if (ld->ld_error ) {
+			if ( ld->ld_error ) {
 				LDAP_FREE( ld->ld_error );
 			}
 			ld->ld_error = LDAP_STRDUP( sasl_errdetail( ctx ) );
@@ -807,7 +836,7 @@ ldap_int_sasl_bind(
 
 	if ( saslrc != SASL_OK ) {
 #if SASL_VERSION_MAJOR >= 2
-		if (ld->ld_error ) {
+		if ( ld->ld_error ) {
 			LDAP_FREE( ld->ld_error );
 		}
 		ld->ld_error = LDAP_STRDUP( sasl_errdetail( ctx ) );
@@ -817,13 +846,15 @@ ldap_int_sasl_bind(
 	}
 
 	if( flags != LDAP_SASL_QUIET ) {
-		saslrc = sasl_getprop( ctx, SASL_USERNAME, (SASL_CONST void **) &data );
+		saslrc = sasl_getprop( ctx, SASL_USERNAME,
+			(SASL_CONST void **) &data );
 		if( saslrc == SASL_OK && data && *data ) {
 			fprintf( stderr, "SASL username: %s\n", data );
 		}
 
 #if SASL_VERSION_MAJOR < 2
-		saslrc = sasl_getprop( ctx, SASL_REALM, (SASL_CONST void **) &data );
+		saslrc = sasl_getprop( ctx, SASL_REALM,
+			(SASL_CONST void **) &data );
 		if( saslrc == SASL_OK && data && *data ) {
 			fprintf( stderr, "SASL realm: %s\n", data );
 		}
@@ -896,12 +927,111 @@ ldap_int_sasl_external(
 }
 
 
+#define GOT_MINSSF	1
+#define	GOT_MAXSSF	2
+#define	GOT_MAXBUF	4
+
+static struct {
+	struct berval key;
+	int sflag;
+	int ival;
+	int idef;
+} sprops[] = {
+	{ BER_BVC("none"), 0, 0, 0 },
+	{ BER_BVC("nodict"), SASL_SEC_NODICTIONARY, 0, 0 },
+	{ BER_BVC("noplain"), SASL_SEC_NOPLAINTEXT, 0, 0 },
+	{ BER_BVC("noactive"), SASL_SEC_NOACTIVE, 0, 0 },
+	{ BER_BVC("passcred"), SASL_SEC_PASS_CREDENTIALS, 0, 0 },
+	{ BER_BVC("forwardsec"), SASL_SEC_FORWARD_SECRECY, 0, 0 },
+	{ BER_BVC("noanonymous"), SASL_SEC_NOANONYMOUS, 0, 0 },
+	{ BER_BVC("minssf="), 0, GOT_MINSSF, 0 },
+	{ BER_BVC("maxssf="), 0, GOT_MAXSSF, INT_MAX },
+	{ BER_BVC("maxbufsize="), 0, GOT_MAXBUF, 65536 },
+	{ BER_BVNULL, 0, 0, 0 }
+};
+
+void ldap_pvt_sasl_secprops_unparse(
+	sasl_security_properties_t *secprops,
+	struct berval *out )
+{
+	int i, l = 0;
+	int comma;
+	char *ptr;
+
+	if ( secprops == NULL || out == NULL ) {
+		return;
+	}
+
+	comma = 0;
+	for ( i=0; !BER_BVISNULL( &sprops[i].key ); i++ ) {
+		if ( sprops[i].ival ) {
+			int v = 0;
+
+			switch( sprops[i].ival ) {
+			case GOT_MINSSF: v = secprops->min_ssf; break;
+			case GOT_MAXSSF: v = secprops->max_ssf; break;
+			case GOT_MAXBUF: v = secprops->maxbufsize; break;
+			}
+			/* It is the default, ignore it */
+			if ( v == sprops[i].idef ) continue;
+
+			l += sprops[i].key.bv_len + 24;
+		} else if ( sprops[i].sflag ) {
+			if ( sprops[i].sflag & secprops->security_flags ) {
+				l += sprops[i].key.bv_len;
+			}
+		} else if ( secprops->security_flags == 0 ) {
+			l += sprops[i].key.bv_len;
+		}
+		if ( comma ) l++;
+		comma = 1;
+	}
+	l++;
+
+	out->bv_val = LDAP_MALLOC( l );
+	if ( out->bv_val == NULL ) {
+		out->bv_len = 0;
+		return;
+	}
+
+	ptr = out->bv_val;
+	comma = 0;
+	for ( i=0; !BER_BVISNULL( &sprops[i].key ); i++ ) {
+		if ( sprops[i].ival ) {
+			int v = 0;
+
+			switch( sprops[i].ival ) {
+			case GOT_MINSSF: v = secprops->min_ssf; break;
+			case GOT_MAXSSF: v = secprops->max_ssf; break;
+			case GOT_MAXBUF: v = secprops->maxbufsize; break;
+			}
+			/* It is the default, ignore it */
+			if ( v == sprops[i].idef ) continue;
+
+			if ( comma ) *ptr++ = ',';
+			ptr += sprintf(ptr, "%s%d", sprops[i].key.bv_val, v );
+			comma = 1;
+		} else if ( sprops[i].sflag ) {
+			if ( sprops[i].sflag & secprops->security_flags ) {
+				if ( comma ) *ptr++ = ',';
+				ptr += sprintf(ptr, "%s", sprops[i].key.bv_val );
+				comma = 1;
+			}
+		} else if ( secprops->security_flags == 0 ) {
+			if ( comma ) *ptr++ = ',';
+			ptr += sprintf(ptr, "%s", sprops[i].key.bv_val );
+			comma = 1;
+		}
+	}
+	out->bv_len = ptr - out->bv_val;
+}
+
 int ldap_pvt_sasl_secprops(
 	const char *in,
 	sasl_security_properties_t *secprops )
 {
-	int i;
-	char **props = ldap_str2charray( in, "," );
+	int i, j, l;
+	char **props;
 	unsigned sflags = 0;
 	int got_sflags = 0;
 	sasl_ssf_t max_ssf = 0;
@@ -911,76 +1041,47 @@ int ldap_pvt_sasl_secprops(
 	unsigned maxbufsize = 0;
 	int got_maxbufsize = 0;
 
-	if( props == NULL || secprops == NULL ) {
+	if( secprops == NULL ) {
+		return LDAP_PARAM_ERROR;
+	}
+	props = ldap_str2charray( in, "," );
+	if( props == NULL ) {
 		return LDAP_PARAM_ERROR;
 	}
 
 	for( i=0; props[i]; i++ ) {
-		if( !strcasecmp(props[i], "none") ) {
-			got_sflags++;
-
-		} else if( !strcasecmp(props[i], "noplain") ) {
-			got_sflags++;
-			sflags |= SASL_SEC_NOPLAINTEXT;
-
-		} else if( !strcasecmp(props[i], "noactive") ) {
-			got_sflags++;
-			sflags |= SASL_SEC_NOACTIVE;
-
-		} else if( !strcasecmp(props[i], "nodict") ) {
-			got_sflags++;
-			sflags |= SASL_SEC_NODICTIONARY;
-
-		} else if( !strcasecmp(props[i], "forwardsec") ) {
-			got_sflags++;
-			sflags |= SASL_SEC_FORWARD_SECRECY;
-
-		} else if( !strcasecmp(props[i], "noanonymous")) {
-			got_sflags++;
-			sflags |= SASL_SEC_NOANONYMOUS;
-
-		} else if( !strcasecmp(props[i], "passcred") ) {
-			got_sflags++;
-			sflags |= SASL_SEC_PASS_CREDENTIALS;
-
-		} else if( !strncasecmp(props[i],
-			"minssf=", sizeof("minssf")) )
-		{
-			if( isdigit( (unsigned char) props[i][sizeof("minssf")] ) ) {
-				got_min_ssf++;
-				min_ssf = atoi( &props[i][sizeof("minssf")] );
+		l = strlen( props[i] );
+		for ( j=0; !BER_BVISNULL( &sprops[j].key ); j++ ) {
+			if ( l < sprops[j].key.bv_len ) continue;
+			if ( strncasecmp( props[i], sprops[j].key.bv_val,
+				sprops[j].key.bv_len )) continue;
+			if ( sprops[j].ival ) {
+				unsigned v;
+				char *next = NULL;
+				if ( !isdigit( (unsigned char)props[i][sprops[j].key.bv_len] ))
+					continue;
+				v = strtoul( &props[i][sprops[j].key.bv_len], &next, 10 );
+				if ( next == &props[i][sprops[j].key.bv_len] || next[0] != '\0' ) continue;
+				switch( sprops[j].ival ) {
+				case GOT_MINSSF:
+					min_ssf = v; got_min_ssf++; break;
+				case GOT_MAXSSF:
+					max_ssf = v; got_max_ssf++; break;
+				case GOT_MAXBUF:
+					maxbufsize = v; got_maxbufsize++; break;
+				}
 			} else {
-				return LDAP_NOT_SUPPORTED;
+				if ( props[i][sprops[j].key.bv_len] ) continue;
+				if ( sprops[j].sflag )
+					sflags |= sprops[j].sflag;
+				else
+					sflags = 0;
+				got_sflags++;
 			}
-
-		} else if( !strncasecmp(props[i],
-			"maxssf=", sizeof("maxssf")) )
-		{
-			if( isdigit( (unsigned char) props[i][sizeof("maxssf")] ) ) {
-				got_max_ssf++;
-				max_ssf = atoi( &props[i][sizeof("maxssf")] );
-			} else {
-				return LDAP_NOT_SUPPORTED;
-			}
-
-		} else if( !strncasecmp(props[i],
-			"maxbufsize=", sizeof("maxbufsize")) )
-		{
-			if( isdigit( (unsigned char) props[i][sizeof("maxbufsize")] ) ) {
-				got_maxbufsize++;
-				maxbufsize = atoi( &props[i][sizeof("maxbufsize")] );
-			} else {
-				return LDAP_NOT_SUPPORTED;
-			}
-
-			if( maxbufsize && (( maxbufsize < SASL_MIN_BUFF_SIZE )
-				|| (maxbufsize > SASL_MAX_BUFF_SIZE )))
-			{
-				/* bad maxbufsize */
-				return LDAP_PARAM_ERROR;
-			}
-
-		} else {
+			break;
+		}
+		if ( BER_BVISNULL( &sprops[j].key )) {
+			ldap_charray_free( props );
 			return LDAP_NOT_SUPPORTED;
 		}
 	}
@@ -1182,7 +1283,7 @@ int ldap_pvt_sasl_mutex_lock(void *mutex)
 		return SASL_OK;
 	}
 #else /* !LDAP_DEBUG_R_SASL */
-	assert( mutex );
+	assert( mutex != NULL );
 #endif /* !LDAP_DEBUG_R_SASL */
 	return ldap_pvt_thread_mutex_lock( (ldap_pvt_thread_mutex_t *)mutex )
 		? SASL_FAIL : SASL_OK;
@@ -1195,7 +1296,7 @@ int ldap_pvt_sasl_mutex_unlock(void *mutex)
 		return SASL_OK;
 	}
 #else /* !LDAP_DEBUG_R_SASL */
-	assert( mutex );
+	assert( mutex != NULL );
 #endif /* !LDAP_DEBUG_R_SASL */
 	return ldap_pvt_thread_mutex_unlock( (ldap_pvt_thread_mutex_t *)mutex )
 		? SASL_FAIL : SASL_OK;
@@ -1208,7 +1309,7 @@ void ldap_pvt_sasl_mutex_dispose(void *mutex)
 		return;
 	}
 #else /* !LDAP_DEBUG_R_SASL */
-	assert( mutex );
+	assert( mutex != NULL );
 #endif /* !LDAP_DEBUG_R_SASL */
 	(void) ldap_pvt_thread_mutex_destroy( (ldap_pvt_thread_mutex_t *)mutex );
 	LDAP_FREE( mutex );

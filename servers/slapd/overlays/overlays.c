@@ -1,8 +1,8 @@
 /* overlays.c - Static overlay framework */
-/* $OpenLDAP: pkg/ldap/servers/slapd/overlays/overlays.c,v 1.3.2.3 2005/01/20 17:01:17 kurt Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/overlays/overlays.c,v 1.12.2.9 2007/01/02 21:44:08 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2003-2005 The OpenLDAP Foundation.
+ * Copyright 2003-2007 The OpenLDAP Foundation.
  * Copyright 2003 by Howard Chu.
  * All rights reserved.
  *
@@ -23,50 +23,22 @@
 
 #include "slap.h"
 
-
-#if SLAPD_OVER_DYNGROUP == SLAPD_MOD_STATIC
-extern int dyngroup_init();
-#endif
-#if SLAPD_OVER_PROXYCACHE == SLAPD_MOD_STATIC
-extern int pcache_init();
-#endif
-#if SLAPD_OVER_RWM == SLAPD_MOD_STATIC
-extern int rwm_init();
-#endif
-
-static struct {
-	char *name;
-	int (*func)();
-} funcs[] = {
-#if SLAPD_OVER_DYNGROUP == SLAPD_MOD_STATIC
-	{ "Dynamic Group", dyngroup_init },
-#endif
-#if SLAPD_OVER_PROXYCACHE == SLAPD_MOD_STATIC
-	{ "Proxy Cache", pcache_init },
-#endif
-#if SLAPD_OVER_RWM == SLAPD_MOD_STATIC
-	{ "Rewrite/Remap", rwm_init },
-#endif
-	{ NULL, NULL }
-};
+extern OverlayInit	slap_oinfo[];
 
 int
 overlay_init(void)
 {
 	int i, rc = 0;
 
-	for ( i=0; funcs[i].name; i++ ) {
-		rc = funcs[i].func();
+	for ( i= 0 ; slap_oinfo[i].ov_type; i++ ) {
+		rc = slap_oinfo[i].ov_init();
 		if ( rc ) {
-#ifdef NEW_LOGGING
-			LDAP_LOG( BACKEND, ERR,
-		"%s overlay setup failed, err %d\n", funcs[i].name, rc, 0 );
-#else
 			Debug( LDAP_DEBUG_ANY,
-		"%s overlay setup failed, err %d\n", funcs[i].name, rc, 0 );
-#endif
+				"%s overlay setup failed, err %d\n",
+				slap_oinfo[i].ov_type, rc, 0 );
 			break;
 		}
 	}
+
 	return rc;
 }

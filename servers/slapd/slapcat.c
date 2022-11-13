@@ -1,7 +1,7 @@
-/* $OpenLDAP: pkg/ldap/servers/slapd/slapcat.c,v 1.1.2.3 2005/06/10 18:21:00 hyc Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/slapcat.c,v 1.2.2.5 2007/01/02 21:43:58 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2005 The OpenLDAP Foundation.
+ * Copyright 1998-2007 The OpenLDAP Foundation.
  * Portions Copyright 1998-2003 Kurt D. Zeilenga.
  * Portions Copyright 2003 IBM Corporation.
  * All rights reserved.
@@ -30,6 +30,7 @@
 #include <ac/string.h>
 
 #include "slapcommon.h"
+#include "ldif.h"
 
 static int gotsig;
 
@@ -100,15 +101,9 @@ slapcat( int argc, char **argv )
 			continue;
 		}
 
-		if ( retrieve_ctxcsn == 0 ) {
-			if ( is_entry_syncProviderSubentry( e ) ) {
-				be_entry_release_r( &op, e );
-				continue;
-			}
-		}
-
-		if ( retrieve_synccookie == 0 ) {
-			if ( is_entry_syncConsumerSubentry( e ) ) {
+		if( filter != NULL ) {
+			int rc = test_filter( NULL, e, filter );
+			if( rc != LDAP_COMPARE_TRUE ) {
 				be_entry_release_r( &op, e );
 				continue;
 			}
@@ -128,8 +123,8 @@ slapcat( int argc, char **argv )
 			break;
 		}
 
-		fputs( data, ldiffp );
-		fputs( "\n", ldiffp );
+		fputs( data, ldiffp->fp );
+		fputs( "\n", ldiffp->fp );
 	}
 
 	be->be_entry_close( be );

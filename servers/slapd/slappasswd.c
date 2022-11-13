@@ -1,7 +1,7 @@
-/* $OpenLDAP: pkg/ldap/servers/slapd/slappasswd.c,v 1.2.2.2 2005/01/20 17:01:10 kurt Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/slappasswd.c,v 1.2.4.4 2007/01/02 21:43:59 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2005 The OpenLDAP Foundation.
+ * Copyright 1998-2007 The OpenLDAP Foundation.
  * Portions Copyright 1998-2003 Kurt D. Zeilenga.
  * All rights reserved.
  *
@@ -33,6 +33,7 @@
 
 #include <ldap.h>
 #include <lutil.h>
+#include <lutil_sha1.h>
 
 #include "ldap_defaults.h"
 
@@ -57,7 +58,12 @@ usage(const char *s)
 int
 slappasswd( int argc, char *argv[] )
 {
+#ifdef LUTIL_SHA1_BYTES
 	char	*scheme = "{SSHA}";
+#else
+	char	*scheme = "{SMD5}";
+#endif
+
 	char	*newpw = NULL;
 	char	*pwfile = NULL;
 	const char *text;

@@ -1,1 +1,0 @@
-./../libldap/getvalues.c

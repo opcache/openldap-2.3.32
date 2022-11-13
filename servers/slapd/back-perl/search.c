@@ -1,7 +1,7 @@
-/* $OpenLDAP: pkg/ldap/servers/slapd/back-perl/search.c,v 1.19.2.7 2005/01/20 17:01:16 kurt Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/back-perl/search.c,v 1.25.2.5 2007/01/02 21:44:06 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1999-2005 The OpenLDAP Foundation.
+ * Copyright 1999-2007 The OpenLDAP Foundation.
  * Portions Copyright 1999 John C. Quillan.
  * Portions Copyright 2002 myinternet Limited.
  * All rights reserved.
@@ -34,6 +34,9 @@ perl_back_search(
 	char *buf;
 	int i;
 
+#if defined(HAVE_WIN32_ASPERL) || defined(USE_ITHREADS)
+	PERL_SET_CONTEXT( PERL_INTERPRETER );
+#endif
 	ldap_pvt_thread_mutex_lock( &perl_interpreter_mutex );	
 
 	{
@@ -87,7 +90,12 @@ perl_back_search(
 						rs->sr_entry = e;
 						rs->sr_attrs = op->ors_attrs;
 						rs->sr_flags = REP_ENTRY_MODIFIABLE;
-						send_search_entry( op, rs );
+						rs->sr_err = LDAP_SUCCESS;
+						rs->sr_err = send_search_entry( op, rs );
+						if ( rs->sr_err == LDAP_SIZELIMIT_EXCEEDED ) {
+							rs->sr_entry = NULL;
+							goto done;
+						}
 					}
 
 					entry_free( e );
@@ -106,8 +114,7 @@ perl_back_search(
 
 		rs->sr_err = POPi;
 
-
-
+done:;
 		PUTBACK; FREETMPS; LEAVE;
 	}
 

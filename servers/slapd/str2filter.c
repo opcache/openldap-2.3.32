@@ -1,8 +1,8 @@
 /* str2filter.c - parse an RFC 2554 string filter */
-/* $OpenLDAP: pkg/ldap/servers/slapd/str2filter.c,v 1.34.2.4 2005/01/20 17:01:10 kurt Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/str2filter.c,v 1.40.2.4 2007/01/02 21:43:59 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2005 The OpenLDAP Foundation.
+ * Copyright 1998-2007 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,14 +33,7 @@
 #include <ac/socket.h>
 
 #include "slap.h"
-#include <ldap_pvt.h>
 
-#if 0 /* unused */
-static char	*find_matching_paren( const char *s );
-#endif /* unused */
-static Filter	*str2list( const char *str, long unsigned int ftype);
-static Filter	*str2simple( const char *str);
-static int	str2subvals( const char *val, Filter *f);
 
 Filter *
 str2filter_x( Operation *op, const char *str )
@@ -51,11 +44,7 @@ str2filter_x( Operation *op, const char *str )
 	BerElement *ber = (BerElement *)&berbuf;
 	const char *text = NULL;
 
-#ifdef NEW_LOGGING
-	LDAP_LOG( FILTER, ENTRY,  "str2filter: \"%s\"\n", str, 0, 0 );
-#else
 	Debug( LDAP_DEBUG_FILTER, "str2filter \"%s\"\n", str, 0, 0 );
-#endif
 
 	if ( str == NULL || *str == '\0' ) {
 		return NULL;
@@ -85,7 +74,9 @@ Filter *
 str2filter( const char *str )
 {
 	Operation op = {0};
+	Opheader ohdr = {0};
 
+	op.o_hdr = &ohdr;
 	op.o_tmpmemctx = NULL;
 	op.o_tmpmfuncs = &ch_mfuncs;
 

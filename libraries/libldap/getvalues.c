@@ -1,7 +1,7 @@
-/* $OpenLDAP: pkg/ldap/libraries/libldap/getvalues.c,v 1.21.2.3 2005/01/20 17:01:01 kurt Exp $ */
+/* $OpenLDAP: pkg/ldap/libraries/libldap/getvalues.c,v 1.24.2.3 2007/01/02 21:43:48 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2005 The OpenLDAP Foundation.
+ * Copyright 1998-2007 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,11 +42,7 @@ ldap_get_values( LDAP *ld, LDAPMessage *entry, LDAP_CONST char *target )
 	assert( entry != NULL );
 	assert( target != NULL );
 
-#ifdef NEW_LOGGING
-	LDAP_LOG ( OPERATION, ENTRY, "ldap_get_values\n", 0, 0, 0 );
-#else
 	Debug( LDAP_DEBUG_TRACE, "ldap_get_values\n", 0, 0, 0 );
-#endif
 
 	ber = *entry->lm_ber;
 
@@ -103,11 +99,7 @@ ldap_get_values_len( LDAP *ld, LDAPMessage *entry, LDAP_CONST char *target )
 	assert( entry != NULL );
 	assert( target != NULL );
 
-#ifdef NEW_LOGGING
-	LDAP_LOG ( OPERATION, ENTRY, "ldap_get_values_len\n", 0, 0, 0 );
-#else
 	Debug( LDAP_DEBUG_TRACE, "ldap_get_values_len\n", 0, 0, 0 );
-#endif
 
 	ber = *entry->lm_ber;
 

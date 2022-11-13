@@ -1,8 +1,8 @@
 /* init.c - initialize ldbm backend */
-/* $OpenLDAP: pkg/ldap/servers/slapd/back-ldbm/init.c,v 1.84.2.8 2005/04/21 02:41:24 hyc Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/back-ldbm/init.c,v 1.96.2.8 2007/01/02 21:44:02 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2005 The OpenLDAP Foundation.
+ * Copyright 1998-2007 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,21 +25,6 @@
 #include "back-ldbm.h"
 #include <ldap_rq.h>
 
-#if SLAPD_LDBM == SLAPD_MOD_DYNAMIC
-
-int init_module(int argc, char *argv[]) {
-    BackendInfo bi;
-
-    memset( &bi, '\0', sizeof(bi) );
-    bi.bi_type = "ldbm";
-    bi.bi_init = ldbm_back_initialize;
-
-    backend_add(&bi);
-    return 0;
-}
-
-#endif /* SLAPD_LDBM */
-
 int
 ldbm_back_initialize(
     BackendInfo	*bi
@@ -47,10 +32,7 @@ ldbm_back_initialize(
 {
 	static char *controls[] = {
 		LDAP_CONTROL_MANAGEDSAIT,
-		LDAP_CONTROL_VALUESRETURNFILTER,
-#ifdef LDAP_CONTROL_X_PERMISSIVE_MODIFY
 		LDAP_CONTROL_X_PERMISSIVE_MODIFY,
-#endif
 		NULL
 	};
 
@@ -211,6 +193,28 @@ ldbm_back_db_open(
 )
 {
 	struct ldbminfo *li = (struct ldbminfo *) be->be_private;
+	int rc;
+
+	rc = alock_open( &li->li_alock_info, "slapd",
+		li->li_directory, ALOCK_UNIQUE );
+	if ( rc == ALOCK_BUSY ) {
+		Debug( LDAP_DEBUG_ANY,
+			"ldbm_back_db_open: database already in use\n",
+			0, 0, 0 );
+		return -1;
+	} else if ( rc == ALOCK_RECOVER ) {
+		Debug( LDAP_DEBUG_ANY,
+			"ldbm_back_db_open: unclean shutdown detected;"
+			" database may be inconsistent!\n",
+			0, 0, 0 );
+		rc = alock_recover( &li->li_alock_info );
+	}
+	if ( rc != ALOCK_CLEAN ) {
+		Debug( LDAP_DEBUG_ANY,
+			"ldbm_back_db_open: alock package is unstable;"
+			" database may be inconsistent!\n",
+			0, 0, 0 );
+	}
 	li->li_dbenv = ldbm_initialize_env( li->li_directory,
 		li->li_dbcachesize, &li->li_envdirok );
 
@@ -219,10 +223,11 @@ ldbm_back_db_open(
 	 */
 	if (( slapMode & SLAP_SERVER_MODE ) && li->li_dbsyncfreq > 0 )
 	{
-		ldap_pvt_thread_mutex_lock( &syncrepl_rq.rq_mutex );
-		ldap_pvt_runqueue_insert( &syncrepl_rq, li->li_dbsyncfreq,
-			ldbm_cache_sync_daemon, be );
-		ldap_pvt_thread_mutex_unlock( &syncrepl_rq.rq_mutex );
+		ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
+		ldap_pvt_runqueue_insert( &slapd_rq, li->li_dbsyncfreq,
+			ldbm_cache_sync_daemon, be,
+			"ldbm_cache_sync", be->be_suffix[0].bv_val );
+		ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
 	}
 
 	return 0;
@@ -252,3 +257,12 @@ ldbm_back_db_destroy(
 
 	return 0;
 }
+
+#if SLAPD_LDBM == SLAPD_MOD_DYNAMIC
+
+/* conditionally define the init_module() function */
+SLAP_BACKEND_INIT_MODULE( ldbm )
+
+#endif /* SLAPD_LDBM == SLAPD_MOD_DYNAMIC */
+
+

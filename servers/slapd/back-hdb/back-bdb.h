@@ -1,8 +1,8 @@
 /* back-bdb.h - hdb back-end header file */
-/* $OpenLDAP: pkg/ldap/servers/slapd/back-hdb/back-bdb.h,v 1.1.2.3 2005/01/20 17:01:12 kurt Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/back-hdb/back-bdb.h,v 1.3.2.3 2007/01/02 21:44:01 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2000-2005 The OpenLDAP Foundation.
+ * Copyright 2000-2007 The OpenLDAP Foundation.
  * Portions Copyright 2003 Howard Chu @ Symas Corp.
  * All rights reserved.
  *

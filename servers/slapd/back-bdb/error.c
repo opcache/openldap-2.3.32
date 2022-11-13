@@ -1,8 +1,8 @@
 /* error.c - BDB errcall routine */
-/* $OpenLDAP: pkg/ldap/servers/slapd/back-bdb/error.c,v 1.10.2.5 2005/01/20 17:01:11 kurt Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/back-bdb/error.c,v 1.15.2.4 2007/01/02 21:44:00 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2000-2005 The OpenLDAP Foundation.
+ * Copyright 2000-2007 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,17 @@ void bdb_errcall( const DB_ENV *env, const char *pfx, const char * msg )
 #endif
 	Debug( LDAP_DEBUG_ANY, "bdb(%s): %s\n", pfx, msg, 0 );
 }
+
+#if DB_VERSION_FULL >= 0x04030000
+void bdb_msgcall( const DB_ENV *env, const char *msg )
+{
+#ifdef HAVE_EBCDIC
+	if ( msg[0] > 0x7f )
+		__etoa( msg );
+#endif
+	Debug( LDAP_DEBUG_TRACE, "bdb: %s\n", msg, 0, 0 );
+}
+#endif
 
 #ifdef HAVE_EBCDIC
 

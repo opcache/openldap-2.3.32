@@ -1,8 +1,8 @@
 /* thr_pth.c - wrappers around GNU Pth */
-/* $OpenLDAP: pkg/ldap/libraries/libldap_r/thr_pth.c,v 1.10.2.4 2005/05/03 23:28:30 hyc Exp $ */
+/* $OpenLDAP: pkg/ldap/libraries/libldap_r/thr_pth.c,v 1.12.2.5 2007/01/02 21:43:51 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2005 The OpenLDAP Foundation.
+ * Copyright 1998-2007 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -18,7 +18,11 @@
 
 #if defined( HAVE_GNU_PTH )
 
-#include "ldap_pvt_thread.h"
+#include "ldap_pvt_thread.h" /* Get the thread interface */
+#define LDAP_THREAD_IMPLEMENTATION
+#define LDAP_THREAD_RDWR_IMPLEMENTATION
+#include "ldap_thr_debug.h"	 /* May rename the symbols defined below */
+
 #include <errno.h>
 
 /*******************

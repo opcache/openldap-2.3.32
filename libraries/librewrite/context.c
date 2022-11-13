@@ -1,7 +1,7 @@
-/* $OpenLDAP: pkg/ldap/libraries/librewrite/context.c,v 1.5.2.6 2005/01/20 17:01:04 kurt Exp $ */
+/* $OpenLDAP: pkg/ldap/libraries/librewrite/context.c,v 1.11.2.4 2007/01/02 21:43:52 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2000-2005 The OpenLDAP Foundation.
+ * Copyright 2000-2007 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -296,7 +296,7 @@ rewrite_context_apply(
 
 				if ( do_continue ) {
 					if ( rule->lr_next == NULL ) {
-						res = ( s == string ? strdup( s ) : s );
+						res = s;
 					}
 					goto rc_continue;
 				}
@@ -321,7 +321,7 @@ rewrite_context_apply(
 			if ( res != NULL ) {
 				struct rewrite_action *action;
 				
-				if (s != string ) {
+				if ( s != string && s != res ) {
 					free( s );
 				}
 				s = res;
@@ -381,7 +381,7 @@ rewrite_context_apply(
 			 * result back to the string
 			 */
 			} else if ( rule->lr_next == NULL ) {
-				res = ( s == string ? strdup( s ) : s );
+				res = s;
 			}
 			
 			break;
@@ -433,7 +433,7 @@ rewrite_context_free(
 {
 	struct rewrite_context *context = (struct rewrite_context *)tmp;
 
-	assert( tmp );
+	assert( tmp != NULL );
 
 	rewrite_context_destroy( &context );
 }
@@ -446,12 +446,12 @@ rewrite_context_destroy(
 	struct rewrite_context *context;
 	struct rewrite_rule *r;
 
-	assert( pcontext );
-	assert( *pcontext );
+	assert( pcontext != NULL );
+	assert( *pcontext != NULL );
 
 	context = *pcontext;
 
-	assert( context->lc_rule );
+	assert( context->lc_rule != NULL );
 
 	for ( r = context->lc_rule->lr_next; r; ) {
 		struct rewrite_rule *cr = r;
@@ -463,7 +463,7 @@ rewrite_context_destroy(
 	free( context->lc_rule );
 	context->lc_rule = NULL;
 
-	assert( context->lc_name );
+	assert( context->lc_name != NULL );
 	free( context->lc_name );
 	context->lc_name = NULL;
 

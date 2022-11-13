@@ -1,7 +1,7 @@
-/* $OpenLDAP: pkg/ldap/libraries/libldap/unbind.c,v 1.44.2.5 2005/09/30 04:08:05 hyc Exp $ */
+/* $OpenLDAP: pkg/ldap/libraries/libldap/unbind.c,v 1.48.2.8 2007/01/02 21:43:50 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2005 The OpenLDAP Foundation.
+ * Copyright 1998-2007 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,11 +67,7 @@ ldap_unbind_ext_s(
 int
 ldap_unbind( LDAP *ld )
 {
-#ifdef NEW_LOGGING
-	LDAP_LOG ( OPERATION, ENTRY, "ldap_unbind\n", 0, 0, 0 );
-#else
 	Debug( LDAP_DEBUG_TRACE, "ldap_unbind\n", 0, 0, 0 );
-#endif
 
 	return( ldap_unbind_ext( ld, NULL, NULL ) );
 }
@@ -94,14 +90,14 @@ ldap_ld_free(
 	while ( ld->ld_requests != NULL ) {
 		ldap_free_request( ld, ld->ld_requests );
 	}
-#ifdef LDAP_R_COMPILE
-	ldap_pvt_thread_mutex_unlock( &ld->ld_req_mutex );
-#endif
 
 	/* free and unbind from all open connections */
 	while ( ld->ld_conns != NULL ) {
 		ldap_free_connection( ld, ld->ld_conns, 1, close );
 	}
+#ifdef LDAP_R_COMPILE
+	ldap_pvt_thread_mutex_unlock( &ld->ld_req_mutex );
+#endif
 
 #ifdef LDAP_R_COMPILE
 	ldap_pvt_thread_mutex_lock( &ld->ld_res_mutex );
@@ -109,6 +105,11 @@ ldap_ld_free(
 	for ( lm = ld->ld_responses; lm != NULL; lm = next ) {
 		next = lm->lm_next;
 		ldap_msgfree( lm );
+	}
+
+	if ( ld->ld_abandoned != NULL ) {
+		LDAP_FREE( ld->ld_abandoned );
+		ld->ld_abandoned = NULL;
 	}
 #ifdef LDAP_R_COMPILE
 	ldap_pvt_thread_mutex_unlock( &ld->ld_res_mutex );
@@ -129,11 +130,6 @@ ldap_ld_free(
 		ld->ld_referrals = NULL;
 	}  
     
-	if ( ld->ld_abandoned != NULL ) {
-		LDAP_FREE( ld->ld_abandoned );
-		ld->ld_abandoned = NULL;
-	}
-
 	if ( ld->ld_selectinfo != NULL ) {
 		ldap_free_select_info( ld->ld_selectinfo );
 		ld->ld_selectinfo = NULL;
@@ -198,6 +194,10 @@ ldap_ld_free(
 #ifdef LDAP_R_COMPILE
 	ldap_pvt_thread_mutex_destroy( &ld->ld_req_mutex );
 	ldap_pvt_thread_mutex_destroy( &ld->ld_res_mutex );
+	ldap_pvt_thread_mutex_destroy( &ld->ld_conn_mutex );
+#endif
+#ifndef NDEBUG
+	LDAP_TRASH(ld);
 #endif
 	LDAP_FREE( (char *) ld );
    
@@ -210,7 +210,8 @@ ldap_unbind_s( LDAP *ld )
 	return( ldap_unbind_ext( ld, NULL, NULL ) );
 }
 
-
+/* FIXME: this function is called only by ldap_free_connection(),
+ * which, most of the times, is called with ld_req_mutex locked */
 int
 ldap_send_unbind(
 	LDAP *ld,
@@ -221,11 +222,7 @@ ldap_send_unbind(
 	BerElement	*ber;
 	ber_int_t	id;
 
-#ifdef NEW_LOGGING
-	LDAP_LOG ( OPERATION, ENTRY, "ldap_send_unbind\n", 0, 0, 0 );
-#else
 	Debug( LDAP_DEBUG_TRACE, "ldap_send_unbind\n", 0, 0, 0 );
-#endif
 
 #ifdef LDAP_CONNECTIONLESS
 	if (LDAP_IS_UDP(ld))
@@ -236,7 +233,8 @@ ldap_send_unbind(
 		return( ld->ld_errno );
 	}
 
-	LDAP_NEXT_MSGID( ld, id );
+	id = ++(ld)->ld_msgid;
+
 	/* fill it in */
 	if ( ber_printf( ber, "{itn" /*}*/, id,
 	    LDAP_REQ_UNBIND ) == -1 ) {
@@ -257,18 +255,12 @@ ldap_send_unbind(
 		return( ld->ld_errno );
 	}
 
-#ifdef LDAP_R_COMPILE
-	ldap_pvt_thread_mutex_lock( &ld->ld_req_mutex );
-#endif
 	ld->ld_errno = LDAP_SUCCESS;
 	/* send the message */
 	if ( ber_flush( sb, ber, 1 ) == -1 ) {
 		ld->ld_errno = LDAP_SERVER_DOWN;
 		ber_free( ber, 1 );
 	}
-#ifdef LDAP_R_COMPILE
-	ldap_pvt_thread_mutex_unlock( &ld->ld_req_mutex );
-#endif
 
 	return( ld->ld_errno );
 }

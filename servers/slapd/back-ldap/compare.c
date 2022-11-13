@@ -1,8 +1,8 @@
 /* compare.c - ldap backend compare function */
-/* $OpenLDAP: pkg/ldap/servers/slapd/back-ldap/compare.c,v 1.42.2.7 2005/01/20 17:01:12 kurt Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/back-ldap/compare.c,v 1.52.2.9 2007/01/02 21:44:01 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2003-2005 The OpenLDAP Foundation.
+ * Copyright 2003-2007 The OpenLDAP Foundation.
  * Portions Copyright 1999-2003 Howard Chu.
  * Portions Copyright 2000-2003 Pierangelo Masarati.
  * All rights reserved.
@@ -33,112 +33,49 @@
 
 int
 ldap_back_compare(
-    Operation	*op,
-    SlapReply	*rs )
+		Operation	*op,
+		SlapReply	*rs )
 {
-	struct ldapinfo	*li = (struct ldapinfo *) op->o_bd->be_private;
-	struct ldapconn *lc;
-	struct berval mapped_at = BER_BVNULL, mapped_val = BER_BVNULL;
-	struct berval mdn = BER_BVNULL;
-	ber_int_t msgid;
-	int freeval = 0;
-	int do_retry = 1;
-	int rc = LDAP_SUCCESS;
-	dncookie dc;
-#ifdef LDAP_BACK_PROXY_AUTHZ 
-	LDAPControl **ctrls = NULL;
-#endif /* LDAP_BACK_PROXY_AUTHZ */
+	ldapconn_t	*lc;
+	ber_int_t	msgid;
+	int		do_retry = 1;
+	LDAPControl	**ctrls = NULL;
+	int		rc = LDAP_SUCCESS;
 
-	lc = ldap_back_getconn(op, rs);
-	if (!lc || !ldap_back_dobind( lc, op, rs ) ) {
-		return( -1 );
+	lc = ldap_back_getconn( op, rs, LDAP_BACK_SENDERR );
+	if ( !lc || !ldap_back_dobind( lc, op, rs, LDAP_BACK_SENDERR ) ) {
+		lc = NULL;
+		goto cleanup;
 	}
 
-	/*
-	 * Rewrite the compare dn, if needed
-	 */
-	dc.rwmap = &li->rwmap;
-#ifdef ENABLE_REWRITE
-	dc.conn = op->o_conn;
-	dc.rs = rs;
-	dc.ctx = "compareDN";
-#else
-	dc.tofrom = 1;
-	dc.normalized = 0;
-#endif
-	if ( ldap_back_dn_massage( &dc, &op->o_req_ndn, &mdn ) ) {
-		send_ldap_result( op, rs );
-		return -1;
-	}
-
-	if ( op->orc_ava->aa_desc == slap_schema.si_ad_objectClass
-		|| op->orc_ava->aa_desc == slap_schema.si_ad_structuralObjectClass ) {
-		ldap_back_map(&li->rwmap.rwm_oc, &op->orc_ava->aa_value,
-				&mapped_val, BACKLDAP_MAP);
-		if (mapped_val.bv_val == NULL || mapped_val.bv_val[0] == '\0') {
-			return( -1 );
-		}
-		mapped_at = op->orc_ava->aa_desc->ad_cname;
-	} else {
-		ldap_back_map(&li->rwmap.rwm_at,
-				&op->orc_ava->aa_desc->ad_cname, &mapped_at, 
-				BACKLDAP_MAP);
-		if (mapped_at.bv_val == NULL || mapped_at.bv_val[0] == '\0') {
-			return( -1 );
-		}
-		if (op->orc_ava->aa_desc->ad_type->sat_syntax == slap_schema.si_syn_distinguishedName ) {
-#ifdef ENABLE_REWRITE
-			dc.ctx = "compareAttrDN";
-#endif
-			ldap_back_dn_massage( &dc, &op->orc_ava->aa_value, &mapped_val );
-			if (mapped_val.bv_val == NULL || mapped_val.bv_val[0] == '\0') {
-				mapped_val = op->orc_ava->aa_value;
-			} else if (mapped_val.bv_val != op->orc_ava->aa_value.bv_val) {
-				freeval = 1;
-			}
-		} else {
-			mapped_val = op->orc_ava->aa_value;
-		}
-	}
-
-#ifdef LDAP_BACK_PROXY_AUTHZ
+retry:
+	ctrls = op->o_ctrls;
 	rc = ldap_back_proxy_authz_ctrl( lc, op, rs, &ctrls );
 	if ( rc != LDAP_SUCCESS ) {
 		send_ldap_result( op, rs );
-		rc = -1;
 		goto cleanup;
 	}
-#endif /* LDAP_BACK_PROXY_AUTHZ */
 
-retry:
-	rs->sr_err = ldap_compare_ext( lc->ld, mdn.bv_val,
-			mapped_at.bv_val, &mapped_val, 
-#ifdef LDAP_BACK_PROXY_AUTHZ
-			ctrls,
-#else /* ! LDAP_BACK_PROXY_AUTHZ */
-			op->o_ctrls,
-#endif /* ! LDAP_BACK_PROXY_AUTHZ */
-			NULL, &msgid );
-	rc = ldap_back_op_result( lc, op, rs, msgid, 1 );
-	if ( rs->sr_err == LDAP_UNAVAILABLE && do_retry ) {
+	rs->sr_err = ldap_compare_ext( lc->lc_ld, op->o_req_dn.bv_val,
+			op->orc_ava->aa_desc->ad_cname.bv_val,
+			&op->orc_ava->aa_value, 
+			ctrls, NULL, &msgid );
+	rc = ldap_back_op_result( lc, op, rs, msgid, 0, LDAP_BACK_SENDRESULT );
+	if ( rc == LDAP_UNAVAILABLE && do_retry ) {
 		do_retry = 0;
-		if ( ldap_back_retry (lc, op, rs )) goto retry;
+		if ( ldap_back_retry( &lc, op, rs, LDAP_BACK_SENDERR ) ) {
+			/* if the identity changed, there might be need to re-authz */
+			(void)ldap_back_proxy_authz_ctrl_free( op, &ctrls );
+			goto retry;
+		}
 	}
 
-#ifdef LDAP_BACK_PROXY_AUTHZ
 cleanup:
-	if ( ctrls && ctrls != op->o_ctrls ) {
-		free( ctrls[ 0 ] );
-		free( ctrls );
-	}
-#endif /* LDAP_BACK_PROXY_AUTHZ */
+	(void)ldap_back_proxy_authz_ctrl_free( op, &ctrls );
 	
-	if ( mdn.bv_val != op->o_req_ndn.bv_val ) {
-		free( mdn.bv_val );
-	}
-	if ( freeval ) {
-		free( mapped_val.bv_val );
+	if ( lc != NULL ) {
+		ldap_back_release_conn( op, rs, lc );
 	}
 
-	return rc;
+	return rs->sr_err;
 }

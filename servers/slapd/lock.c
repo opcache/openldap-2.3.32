@@ -1,8 +1,8 @@
 /* lock.c - routines to open and apply an advisory lock to a file */
-/* $OpenLDAP: pkg/ldap/servers/slapd/lock.c,v 1.26.2.4 2005/01/20 17:01:08 kurt Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/lock.c,v 1.29.2.3 2007/01/02 21:43:56 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2005 The OpenLDAP Foundation.
+ * Copyright 1998-2007 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,12 +50,7 @@ lock_fopen( const char *fname, const char *type, FILE **lfp )
 	snprintf( buf, sizeof buf, "%s.lock", fname );
 
 	if ( (*lfp = fopen( buf, "w" )) == NULL ) {
-#ifdef NEW_LOGGING
-		LDAP_LOG( OPERATION, ERR, 
-			"lock_fopen: could not open lock file \"%s\".\n", buf, 0, 0);
-#else
 		Debug( LDAP_DEBUG_ANY, "could not open \"%s\"\n", buf, 0, 0 );
-#endif
 
 		return( NULL );
 	}
@@ -65,12 +60,7 @@ lock_fopen( const char *fname, const char *type, FILE **lfp )
 
 	/* open the log file */
 	if ( (fp = fopen( fname, type )) == NULL ) {
-#ifdef NEW_LOGGING
-		LDAP_LOG( OPERATION, ERR, 
-			"lock_fopen: could not open log file \"%s\".\n", buf, 0, 0);
-#else
 		Debug( LDAP_DEBUG_ANY, "could not open \"%s\"\n", fname, 0, 0 );
-#endif
 
 		ldap_unlockf( fileno(*lfp) );
 		fclose( *lfp );
@@ -85,7 +75,6 @@ int
 lock_fclose( FILE *fp, FILE *lfp )
 {
 	int rc = fclose( fp );
-
 	/* unlock */
 	ldap_unlockf( fileno(lfp) );
 	fclose( lfp );

@@ -1,8 +1,8 @@
 /* referral.c - DNS SRV backend referral handler */
-/* $OpenLDAP: pkg/ldap/servers/slapd/back-dnssrv/referral.c,v 1.11.2.4 2005/04/20 12:14:15 ando Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/back-dnssrv/referral.c,v 1.17.2.6 2007/01/02 21:44:01 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2000-2005 The OpenLDAP Foundation.
+ * Copyright 2000-2007 The OpenLDAP Foundation.
  * Portions Copyright 2000-2003 Kurt D. Zeilenga.
  * All rights reserved.
  *
@@ -27,7 +27,7 @@
 #include <ac/socket.h>
 
 #include "slap.h"
-#include "external.h"
+#include "proto-dnssrv.h"
 
 int
 dnssrv_back_referrals(
@@ -41,7 +41,15 @@ dnssrv_back_referrals(
 	char **hosts = NULL;
 	BerVarray urls = NULL;
 
-	if( op->o_req_dn.bv_len == 0 ) {
+	if ( BER_BVISEMPTY( &op->o_req_dn ) ) {
+#ifdef LDAP_DEVEL
+		/* FIXME: need some means to determine whether the database
+		 * is a glue instance */
+		if ( SLAP_GLUE_INSTANCE( op->o_bd ) ) {
+			return LDAP_SUCCESS;
+		}
+#endif /* LDAP_DEVEL */
+
 		rs->sr_text = "DNS SRV operation upon null (empty) DN disallowed";
 		return LDAP_UNWILLING_TO_PERFORM;
 	}
@@ -87,11 +95,11 @@ dnssrv_back_referrals(
 	for( i=0; hosts[i] != NULL; i++) {
 		struct berval url;
 
-		url.bv_len = sizeof("ldap://")-1 + strlen(hosts[i]);
+		url.bv_len = STRLENOF( "ldap://" ) + strlen( hosts[i] );
 		url.bv_val = ch_malloc( url.bv_len + 1 );
 
 		strcpy( url.bv_val, "ldap://" );
-		strcpy( &url.bv_val[sizeof("ldap://")-1], hosts[i] );
+		strcpy( &url.bv_val[STRLENOF( "ldap://" )], hosts[i] );
 
 		if ( ber_bvarray_add( &urls, &url ) < 0 ) {
 			free( url.bv_val );
@@ -101,9 +109,9 @@ dnssrv_back_referrals(
 	}
 
 	Statslog( LDAP_DEBUG_STATS,
-	    "conn=%lu op=%lu DNSSRV p=%d dn=\"%s\" url=\"%s\"\n",
-	    op->o_connid, op->o_opid, op->o_protocol,
-		op->o_req_dn.bv_val, urls[0].bv_val );
+	    "%s DNSSRV p=%d dn=\"%s\" url=\"%s\"\n",
+	    op->o_log_prefix, op->o_protocol,
+		op->o_req_dn.bv_val, urls[0].bv_val, 0 );
 
 	Debug( LDAP_DEBUG_TRACE, "DNSSRV: dn=\"%s\" -> url=\"%s\"\n",
 		op->o_req_dn.bv_val, urls[0].bv_val, 0 );

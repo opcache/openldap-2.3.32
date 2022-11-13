@@ -1,8 +1,8 @@
 /* operation.c - routines to deal with pending ldap operations */
-/* $OpenLDAP: pkg/ldap/servers/slapd/operation.c,v 1.42.2.7 2005/01/20 17:01:08 kurt Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/operation.c,v 1.63.2.9 2007/01/02 21:43:57 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2005 The OpenLDAP Foundation.
+ * Copyright 1998-2007 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,8 @@
 
 static ldap_pvt_thread_mutex_t	slap_op_mutex;
 static LDAP_STAILQ_HEAD(s_o, slap_op)	slap_free_ops;
+static time_t last_time;
+static int last_incr;
 
 void slap_op_init(void)
 {
@@ -59,23 +61,32 @@ void slap_op_destroy(void)
 }
 
 void
+slap_op_groups_free( Operation *op )
+{
+	GroupAssertion *g, *n;
+	for ( g = op->o_groups; g; g = n ) {
+		n = g->ga_next;
+		slap_sl_free( g, op->o_tmpmemctx );
+	}
+	op->o_groups = NULL;
+}
+
+void
 slap_op_free( Operation *op )
 {
-	struct berval slap_empty_bv_dup;
-
 	assert( LDAP_STAILQ_NEXT(op, o_next) == NULL );
 
 	if ( op->o_ber != NULL ) {
 		ber_free( op->o_ber, 1 );
 	}
-	if ( op->o_dn.bv_val != NULL ) {
-		free( op->o_dn.bv_val );
+	if ( !BER_BVISNULL( &op->o_dn ) ) {
+		ch_free( op->o_dn.bv_val );
 	}
-	if ( op->o_ndn.bv_val != NULL ) {
-		free( op->o_ndn.bv_val );
+	if ( !BER_BVISNULL( &op->o_ndn ) ) {
+		ch_free( op->o_ndn.bv_val );
 	}
-	if ( op->o_authmech.bv_val != NULL ) {
-		free( op->o_authmech.bv_val );
+	if ( !BER_BVISNULL( &op->o_authmech ) ) {
+		ch_free( op->o_authmech.bv_val );
 	}
 	if ( op->o_ctrls != NULL ) {
 		slap_free_ctrls( op, op->o_ctrls );
@@ -87,35 +98,38 @@ slap_op_free( Operation *op )
 	}
 #endif
 
-	slap_sync_cookie_free( &op->o_sync_state, 0 );
-
-	{
-		GroupAssertion *g, *n;
-		for (g = op->o_groups; g; g=n) {
-			n = g->ga_next;
-			sl_free(g, op->o_tmpmemctx);
-		}
-		op->o_groups = NULL;
+	if ( op->o_groups ) {
+		slap_op_groups_free( op );
 	}
 
 #if defined( LDAP_SLAPI )
-	if ( op->o_pb != NULL ) {
-		slapi_pblock_destroy( (Slapi_PBlock *)op->o_pb );
+	if ( slapi_plugins_used ) {
 		slapi_int_free_object_extensions( SLAPI_X_EXT_OPERATION, op );
 	}
 #endif /* defined( LDAP_SLAPI ) */
 
-	if ( op->o_sync_csn.bv_val != NULL ) {
-		ch_free( op->o_sync_csn.bv_val );
-	}
 
-	memset( op, 0, sizeof(Operation) );
+	memset( op, 0, sizeof(Operation) + sizeof(Opheader) + SLAP_MAX_CIDS * sizeof(void *) );
+	op->o_hdr = (Opheader *)(op+1);
+	op->o_controls = (void **)(op->o_hdr+1);
 
-	op->o_sync_state.sid = -1;
-	op->o_sync_slog_size = -1;
-	op->o_sync_state.rid = -1;
 	ldap_pvt_thread_mutex_lock( &slap_op_mutex );
 	LDAP_STAILQ_INSERT_HEAD( &slap_free_ops, op, o_next );
+	ldap_pvt_thread_mutex_unlock( &slap_op_mutex );
+}
+
+void
+slap_op_time(time_t *t, int *nop)
+{
+	*t = slap_get_time();
+	ldap_pvt_thread_mutex_lock( &slap_op_mutex );
+	if ( *t == last_time ) {
+		*nop = ++last_incr;
+	} else {
+		last_time = *t;
+		last_incr = 0;
+		*nop = 0;
+	}
 	ldap_pvt_thread_mutex_unlock( &slap_op_mutex );
 }
 
@@ -128,7 +142,6 @@ slap_op_alloc(
 )
 {
 	Operation	*op;
-	struct berval slap_empty_bv_dup;
 
 	ldap_pvt_thread_mutex_lock( &slap_op_mutex );
 	if ((op = LDAP_STAILQ_FIRST( &slap_free_ops ))) {
@@ -137,29 +150,54 @@ slap_op_alloc(
 	ldap_pvt_thread_mutex_unlock( &slap_op_mutex );
 
 	if (!op) {
-		op = (Operation *) ch_calloc( 1, sizeof(Operation) );
+		op = (Operation *) ch_calloc( 1, sizeof(Operation)
+			+ sizeof(Opheader) + SLAP_MAX_CIDS * sizeof(void *) );
+		op->o_hdr = (Opheader *)(op + 1);
+		op->o_controls = (void **)(op->o_hdr+1);
 	}
 
 	op->o_ber = ber;
 	op->o_msgid = msgid;
 	op->o_tag = tag;
 
-	op->o_time = slap_get_time();
+	slap_op_time( &op->o_time, &op->o_tincr );
 	op->o_opid = id;
 	op->o_res_ber = NULL;
 
-	op->o_sync_state.sid = -1;
-	op->o_sync_slog_size = -1;
-	op->o_sync_state.rid = -1;
-	LDAP_STAILQ_FIRST( &op->o_sync_slog_list ) = NULL;
-	op->o_sync_slog_list.stqh_last = &LDAP_STAILQ_FIRST( &op->o_sync_slog_list );
-
 #if defined( LDAP_SLAPI )
 	if ( slapi_plugins_used ) {
-		op->o_pb = slapi_pblock_new();
 		slapi_int_create_object_extensions( SLAPI_X_EXT_OPERATION, op );
 	}
 #endif /* defined( LDAP_SLAPI ) */
 
 	return( op );
+}
+
+slap_op_t
+slap_req2op( ber_tag_t tag )
+{
+	switch ( tag ) {
+	case LDAP_REQ_BIND:
+		return SLAP_OP_BIND;
+	case LDAP_REQ_UNBIND:
+		return SLAP_OP_UNBIND;
+	case LDAP_REQ_ADD:
+		return SLAP_OP_ADD;
+	case LDAP_REQ_DELETE:
+		return SLAP_OP_DELETE;
+	case LDAP_REQ_MODRDN:
+		return SLAP_OP_MODRDN;
+	case LDAP_REQ_MODIFY:
+		return SLAP_OP_MODIFY;
+	case LDAP_REQ_COMPARE:
+		return SLAP_OP_COMPARE;
+	case LDAP_REQ_SEARCH:
+		return SLAP_OP_SEARCH;
+	case LDAP_REQ_ABANDON:
+		return SLAP_OP_ABANDON;
+	case LDAP_REQ_EXTENDED:
+		return SLAP_OP_EXTENDED;
+	}
+
+	return SLAP_OP_LAST;
 }

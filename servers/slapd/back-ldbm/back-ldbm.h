@@ -1,8 +1,8 @@
 /* back-ldbm.h - ldap ldbm back-end header file */
-/* $OpenLDAP: pkg/ldap/servers/slapd/back-ldbm/back-ldbm.h,v 1.60.2.5 2005/04/21 02:41:24 hyc Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/back-ldbm/back-ldbm.h,v 1.64.2.5 2007/01/02 21:44:02 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2005 The OpenLDAP Foundation.
+ * Copyright 1998-2007 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -18,6 +18,7 @@
 #define _BACK_LDBM_H_
 
 #include "ldbm.h"
+#include "alock.h"
 
 LDAP_BEGIN_DECL
 
@@ -152,6 +153,7 @@ struct ldbminfo {
 	int			li_dbsyncwaitn;
 	int			li_dbsyncwaitinterval;
 	int			li_dbsyncwaitcount;
+	alock_info_t	li_alock_info;
 };
 
 LDAP_END_DECL
